@@ -1,53 +1,57 @@
-import { useEffect, useState } from 'react'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { AppShell, Card, Notice, PageIntro, SectionTitle, Stat } from '@/components/menara-ui'
-import { meta, rupiah } from '@/lib/menara-data'
-import { fetchProduct, type Product } from '@/lib/content'
-import { supabase } from '@/integrations/supabase/client'
+import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AppShell, Card, Notice, PageIntro, SectionTitle, Stat } from "@/components/menara-ui";
+import { meta, rupiah } from "@/lib/menara-data";
+import { fetchProduct, type Product } from "@/lib/content";
+import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute('/package/details/$id')({
-  head: () => meta('Detail Produk', 'Rincian paket sebelum pembelian.'),
+export const Route = createFileRoute("/package/details/$id")({
+  head: () => meta("Detail Produk", "Rincian paket sebelum pembelian."),
   component: Page,
-})
+});
 
 function Page() {
-  const { id } = Route.useParams()
-  const navigate = useNavigate()
-  const [p, setP] = useState<Product | null>(null)
-  const [balance, setBalance] = useState<number | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
+  const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const [p, setP] = useState<Product | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   const loadBalance = async () => {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth.user) return setBalance(null)
-    const { data } = await supabase.from('profiles').select('balance').eq('id', auth.user.id).maybeSingle()
-    setBalance(Number(data?.balance ?? 0))
-  }
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return setBalance(null);
+    const { data } = await supabase
+      .from("profiles")
+      .select("balance")
+      .eq("id", auth.user.id)
+      .maybeSingle();
+    setBalance(Number(data?.balance ?? 0));
+  };
 
   useEffect(() => {
-    void fetchProduct(id).then(setP)
-    void loadBalance()
-  }, [id])
+    void fetchProduct(id).then(setP);
+    void loadBalance();
+  }, [id]);
 
   async function buy() {
-    setBusy(true)
-    setErr(null)
-    setMsg(null)
-    const { data: auth } = await supabase.auth.getUser()
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) {
-      setBusy(false)
-      void navigate({ to: '/auth' })
-      return
+      setBusy(false);
+      void navigate({ to: "/auth" });
+      return;
     }
-    const { error } = await supabase.rpc('buy_product', { _product_id: id })
-    if (error) setErr(error.message)
+    const { error } = await supabase.rpc("buy_product", { _product_id: id });
+    if (error) setErr(error.message);
     else {
-      setMsg('Pembelian berhasil. Produk aktif dapat dilihat di Portofolio.')
-      await loadBalance()
+      setMsg("Pembelian berhasil. Produk aktif dapat dilihat di Portofolio.");
+      await loadBalance();
     }
-    setBusy(false)
+    setBusy(false);
   }
 
   if (!p) {
@@ -55,10 +59,10 @@ function Page() {
       <AppShell back="/vip" title="DETAIL PRODUK">
         <Card>Memuat produk…</Card>
       </AppShell>
-    )
+    );
   }
 
-  const enough = balance !== null && balance >= p.price
+  const enough = balance !== null && balance >= p.price;
 
   return (
     <AppShell back="/vip" title="DETAIL PRODUK">
@@ -82,15 +86,21 @@ function Page() {
         </div>
         <div className="data-row">
           <span>Saldo tersedia</span>
-          <strong>{balance === null ? 'Belum masuk' : rupiah(balance)}</strong>
+          <strong>{balance === null ? "Belum masuk" : rupiah(balance)}</strong>
         </div>
         <div className="data-row">
           <span>Estimasi sisa saldo</span>
-          <strong>{balance === null ? '-' : rupiah(Math.max(0, balance - p.price))}</strong>
+          <strong>{balance === null ? "-" : rupiah(Math.max(0, balance - p.price))}</strong>
         </div>
-        {!enough && balance !== null && <Notice>Saldo kurang {rupiah(p.price - balance)}. Silakan isi saldo dulu.</Notice>}
-        <button onClick={() => void buy()} disabled={busy || !enough} className="btn-primary mt-3 w-full disabled:opacity-50">
-          {busy ? 'Memproses…' : 'Beli Sekarang'}
+        {!enough && balance !== null && (
+          <Notice>Saldo kurang {rupiah(p.price - balance)}. Silakan isi saldo dulu.</Notice>
+        )}
+        <button
+          onClick={() => void buy()}
+          disabled={busy || !enough}
+          className="btn-primary mt-3 w-full disabled:opacity-50"
+        >
+          {busy ? "Memproses…" : "Beli Sekarang"}
         </button>
         {msg && <p className="mt-3 text-center text-xs text-primary">{msg}</p>}
         {err && <p className="mt-3 text-center text-xs text-destructive">{err}</p>}
@@ -98,12 +108,15 @@ function Page() {
       <SectionTitle>Informasi Paket</SectionTitle>
       <Card>
         {[
-          ['Harga paket', rupiah(p.price)],
-          ['Estimasi harian', rupiah(p.daily)],
-          ['Estimasi hasil total', rupiah(p.total)],
-          ['Masa berlaku', `${p.days} hari`],
-          ['Rasio estimasi', `${((p.total / Math.max(1, p.price)) * 100).toFixed(1).replace('.', ',')}%`],
-          ['Tipe produk', p.type],
+          ["Harga paket", rupiah(p.price)],
+          ["Estimasi harian", rupiah(p.daily)],
+          ["Estimasi hasil total", rupiah(p.total)],
+          ["Masa berlaku", `${p.days} hari`],
+          [
+            "Rasio estimasi",
+            `${((p.total / Math.max(1, p.price)) * 100).toFixed(1).replace(".", ",")}%`,
+          ],
+          ["Tipe produk", p.type],
         ].map((x) => (
           <div className="data-row" key={x[0]}>
             <span>{x[0]}</span>
@@ -114,11 +127,11 @@ function Page() {
       <SectionTitle>Tentang Produk</SectionTitle>
       <p className="text-xs leading-relaxed text-muted-foreground">
         {p.description ??
-          'Paket investasi Menara Miliarder dengan estimasi hasil berkala. Periksa seluruh rincian dan risiko sebelum membeli.'}
+          "Paket investasi Velocity Driver dengan estimasi hasil berkala. Periksa seluruh rincian dan risiko sebelum membeli."}
       </p>
       <Link to="/deposit" className="btn-secondary mt-4 w-full">
         Isi Saldo
       </Link>
     </AppShell>
-  )
+  );
 }

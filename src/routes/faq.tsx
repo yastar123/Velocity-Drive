@@ -1,19 +1,19 @@
-import { useEffect, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
-import { AppShell, Card, PageIntro } from '@/components/menara-ui'
-import { meta } from '@/lib/menara-data'
-import { fetchFaqs, type Faq } from '@/lib/content'
+import { useEffect, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { AppShell, Card, PageIntro } from "@/components/menara-ui";
+import { meta } from "@/lib/menara-data";
+import { fetchFaqs, type Faq } from "@/lib/content";
 
-export const Route = createFileRoute('/faq')({
-  head: () => meta('FAQ & Bantuan', 'Jawaban pertanyaan umum mengenai akun dan keamanan.'),
+export const Route = createFileRoute("/faq")({
+  head: () => meta("FAQ & Bantuan", "Jawaban pertanyaan umum mengenai akun dan keamanan."),
   component: Page,
-})
+});
 
 function Page() {
-  const [items, setItems] = useState<Faq[]>([])
+  const [items, setItems] = useState<Faq[]>([]);
   useEffect(() => {
-    void fetchFaqs().then(setItems)
-  }, [])
+    void fetchFaqs().then(setItems);
+  }, []);
 
   return (
     <AppShell back="/profile" title="FAQ & BANTUAN">
@@ -30,5 +30,5 @@ function Page() {
         {items.length === 0 && <Card>Belum ada pertanyaan yang dipublikasikan.</Card>}
       </div>
     </AppShell>
-  )
+  );
 }

@@ -1,29 +1,29 @@
-import { useEffect, useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { AppShell, Card, Empty, PageIntro, Stat } from '@/components/menara-ui'
-import { meta, rupiah } from '@/lib/menara-data'
-import { fetchMyOrders, type Order } from '@/lib/content'
-import { supabase } from '@/integrations/supabase/client'
+import { useEffect, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AppShell, Card, Empty, PageIntro, Stat } from "@/components/menara-ui";
+import { meta, rupiah } from "@/lib/menara-data";
+import { fetchMyOrders, type Order } from "@/lib/content";
+import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute('/ordered')({
-  head: () => meta('Portofolio Aktif', 'Pantau produk aktif dan jadwal klaim.'),
+export const Route = createFileRoute("/ordered")({
+  head: () => meta("Portofolio Aktif", "Pantau produk aktif dan jadwal klaim."),
   component: Page,
-})
+});
 
 function Page() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [signedIn, setSignedIn] = useState(true)
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [signedIn, setSignedIn] = useState(true);
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!data.user) return setSignedIn(false)
-      setOrders(await fetchMyOrders(data.user.id))
-    })()
-  }, [])
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return setSignedIn(false);
+      setOrders(await fetchMyOrders(data.user.id));
+    })();
+  }, []);
 
-  const active = orders.filter((o) => o.status === 'active')
-  const earnings = active.reduce((s, o) => s + o.total, 0)
+  const active = orders.filter((o) => o.status === "active");
+  const earnings = active.reduce((s, o) => s + o.total, 0);
 
   return (
     <AppShell>
@@ -36,7 +36,10 @@ function Page() {
       </div>
       {!signedIn && <Card>Masuk untuk melihat produk aktif Anda.</Card>}
       {signedIn && orders.length === 0 && (
-        <Empty title="Belum Ada Produk Aktif" text="Produk yang Anda beli akan muncul di sini lengkap dengan progres dan jadwal klaim." />
+        <Empty
+          title="Belum Ada Produk Aktif"
+          text="Produk yang Anda beli akan muncul di sini lengkap dengan progres dan jadwal klaim."
+        />
       )}
       <div className="space-y-2">
         {orders.map((o) => (
@@ -45,7 +48,7 @@ function Page() {
               <div>
                 <h2 className="font-display text-base font-bold">{o.product_name}</h2>
                 <p className="text-[10px] uppercase text-muted-foreground">
-                  {new Date(o.created_at).toLocaleDateString('id-ID')} • {o.status}
+                  {new Date(o.created_at).toLocaleDateString("id-ID")} • {o.status}
                 </p>
               </div>
               <span className="font-display text-sm font-bold text-primary">{rupiah(o.price)}</span>
@@ -62,5 +65,5 @@ function Page() {
         Lihat Produk
       </Link>
     </AppShell>
-  )
+  );
 }

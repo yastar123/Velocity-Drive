@@ -1,11 +1,19 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Upload } from 'lucide-react'
-import { AppShell, Card, CopyButton, Notice, PageIntro, SectionTitle, Stat } from '@/components/menara-ui'
-import { PaymentImage, ScheduleBanner, StatusBadge } from '@/components/payment-ui'
-import { banks, meta, rupiah } from '@/lib/menara-data'
-import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from '@/hooks/use-auth'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Upload } from "lucide-react";
+import {
+  AppShell,
+  Card,
+  CopyButton,
+  Notice,
+  PageIntro,
+  SectionTitle,
+  Stat,
+} from "@/components/menara-ui";
+import { PaymentImage, ScheduleBanner, StatusBadge } from "@/components/payment-ui";
+import { banks, meta, rupiah } from "@/lib/menara-data";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 import {
   fetchPaymentSettings,
   isWindowOpen,
@@ -13,90 +21,96 @@ import {
   uploadPaymentImage,
   type DepositRequest,
   type PaymentSettings,
-} from '@/lib/payments'
+} from "@/lib/payments";
 
-export const Route = createFileRoute('/_authenticated/deposit')({
-  head: () => meta('Deposit Manual', 'Isi saldo dengan QRIS atau transfer bank, lalu kirim bukti pembayaran.'),
+export const Route = createFileRoute("/_authenticated/deposit")({
+  head: () =>
+    meta(
+      "Deposit Manual",
+      "Isi saldo dengan QRIS atau transfer bank, lalu kirim bukti pembayaran.",
+    ),
   component: Page,
-})
+});
 
-const methods = ['QRIS', ...banks]
+const methods = ["QRIS", ...banks];
 
 function Page() {
-  const { user } = useAuth()
-  const [settings, setSettings] = useState<PaymentSettings | null>(null)
-  const [balance, setBalance] = useState(0)
-  const [rows, setRows] = useState<DepositRequest[]>([])
-  const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState('QRIS')
-  const [sender, setSender] = useState('')
-  const [file, setFile] = useState<File | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-  const fileInput = useRef<HTMLInputElement>(null)
+  const { user } = useAuth();
+  const [settings, setSettings] = useState<PaymentSettings | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [rows, setRows] = useState<DepositRequest[]>([]);
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState("QRIS");
+  const [sender, setSender] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    if (!user) return
+    if (!user) return;
     const [s, profile, list] = await Promise.all([
       fetchPaymentSettings(),
-      supabase.from('profiles').select('balance').eq('id', user.id).maybeSingle(),
+      supabase.from("profiles").select("balance").eq("id", user.id).maybeSingle(),
       supabase
-        .from('deposit_requests')
-        .select('id,user_id,amount,method,sender_name,proof_path,status,admin_note,created_at,reviewed_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .from("deposit_requests")
+        .select(
+          "id,user_id,amount,method,sender_name,proof_path,status,admin_note,created_at,reviewed_at",
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .limit(20),
-    ])
-    setSettings(s)
-    setBalance(Number(profile.data?.balance ?? 0))
-    setRows((list.data ?? []) as DepositRequest[])
-  }, [user])
+    ]);
+    setSettings(s);
+    setBalance(Number(profile.data?.balance ?? 0));
+    setRows((list.data ?? []) as DepositRequest[]);
+  }, [user]);
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void load();
+  }, [load]);
 
-  const enabled = settings?.deposit_enabled ?? false
-  const open = settings ? isWindowOpen(settings.deposit_start, settings.deposit_end) : false
-  const canSubmit = Boolean(settings) && enabled && open
-  const minimum = settings?.min_deposit ?? 0
+  const enabled = settings?.deposit_enabled ?? false;
+  const open = settings ? isWindowOpen(settings.deposit_start, settings.deposit_end) : false;
+  const canSubmit = Boolean(settings) && enabled && open;
+  const minimum = settings?.min_deposit ?? 0;
 
   async function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!user || !settings) return
-    setErr(null)
-    setMsg(null)
-    const value = Number(amount)
+    e.preventDefault();
+    if (!user || !settings) return;
+    setErr(null);
+    setMsg(null);
+    const value = Number(amount);
     if (!Number.isFinite(value) || value < minimum) {
-      setErr(`Nominal minimal ${rupiah(minimum)}.`)
-      return
+      setErr(`Nominal minimal ${rupiah(minimum)}.`);
+      return;
     }
     if (!file) {
-      setErr('Unggah bukti pembayaran terlebih dahulu.')
-      return
+      setErr("Unggah bukti pembayaran terlebih dahulu.");
+      return;
     }
-    setBusy(true)
+    setBusy(true);
     try {
-      const proof = await uploadPaymentImage('deposit', user.id, file)
-      const { error } = await supabase.from('deposit_requests').insert({
+      const proof = await uploadPaymentImage("deposit", user.id, file);
+      const { error } = await supabase.from("deposit_requests").insert({
         user_id: user.id,
         amount: value,
         method,
         sender_name: sender.trim() || null,
         proof_path: proof,
-      })
-      if (error) throw new Error(error.message)
-      setMsg('Permintaan deposit terkirim. Admin akan memeriksa bukti Anda dan menambah saldo.')
-      setAmount('')
-      setSender('')
-      setFile(null)
-      if (fileInput.current) fileInput.current.value = ''
-      await load()
+      });
+      if (error) throw new Error(error.message);
+      setMsg("Permintaan deposit terkirim. Admin akan memeriksa bukti Anda dan menambah saldo.");
+      setAmount("");
+      setSender("");
+      setFile(null);
+      if (fileInput.current) fileInput.current.value = "";
+      await load();
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : 'Gagal mengirim permintaan deposit.')
+      setErr(e2 instanceof Error ? e2.message : "Gagal mengirim permintaan deposit.");
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
@@ -126,7 +140,9 @@ function Page() {
         {settings?.qris_path ? (
           <PaymentImage path={settings.qris_path} alt="Kode QRIS pembayaran" className="max-h-80" />
         ) : (
-          <p className="text-xs text-muted-foreground">Admin belum mengunggah kode QRIS. Hubungi layanan pelanggan.</p>
+          <p className="text-xs text-muted-foreground">
+            Admin belum mengunggah kode QRIS. Hubungi layanan pelanggan.
+          </p>
         )}
         {settings?.qris_owner_name && (
           <div className="mt-3 data-row">
@@ -188,7 +204,7 @@ function Page() {
             />
           </label>
           <button className="btn-primary w-full disabled:opacity-50" disabled={busy || !canSubmit}>
-            <Upload size={15} /> {busy ? 'Mengirim…' : 'Kirim Permintaan Deposit'}
+            <Upload size={15} /> {busy ? "Mengirim…" : "Kirim Permintaan Deposit"}
           </button>
           {!canSubmit && settings && (
             <p className="text-center text-[11px] text-muted-foreground">
@@ -200,7 +216,9 @@ function Page() {
         </form>
       </Card>
 
-      <SectionTitle aside={<span className="text-xs text-muted-foreground">{rows.length} permintaan</span>}>
+      <SectionTitle
+        aside={<span className="text-xs text-muted-foreground">{rows.length} permintaan</span>}
+      >
         Permintaan Deposit Anda
       </SectionTitle>
       <div className="space-y-2">
@@ -215,16 +233,25 @@ function Page() {
               </div>
               <StatusBadge status={r.status} />
             </div>
-            {r.admin_note && <p className="mt-2 text-[11px] text-muted-foreground">Catatan admin: {r.admin_note}</p>}
+            {r.admin_note && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Catatan admin: {r.admin_note}
+              </p>
+            )}
           </Card>
         ))}
-        {rows.length === 0 && <p className="text-sm text-muted-foreground">Belum ada permintaan deposit.</p>}
+        {rows.length === 0 && (
+          <p className="text-sm text-muted-foreground">Belum ada permintaan deposit.</p>
+        )}
       </div>
 
-      <Notice>Simpan bukti bayar hingga saldo bertambah. Admin resmi tidak pernah meminta password atau OTP.</Notice>
+      <Notice>
+        Simpan bukti bayar hingga saldo bertambah. Admin resmi tidak pernah meminta password atau
+        OTP.
+      </Notice>
       <Link to="/history" className="btn-secondary mt-4 w-full">
         Lihat Riwayat
       </Link>
     </AppShell>
-  )
+  );
 }
