@@ -1,8 +1,25 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole = "admin" | "user";
+
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  user_metadata?: {
+    full_name?: string;
+  };
+}
+
+export interface Session {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
+  user: User;
+}
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -11,12 +28,12 @@ export function useAuth() {
 
   useEffect(() => {
     let active = true;
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s: any) => {
       if (!active) return;
       setSession(s);
       if (!s) setRole(null);
     });
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: any) => {
       if (active) {
         setSession(data.session);
         setLoading(false);
@@ -40,7 +57,7 @@ export function useAuth() {
         await supabase.from("profiles").insert({ id: userId, email, full_name: fullName ?? email });
       }
       const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-      let roles = (data ?? []).map((r) => r.role as AppRole);
+      let roles = (data ?? []).map((r: any) => r.role as AppRole);
       if (roles.length === 0) {
         await supabase.from("user_roles").insert({ user_id: userId, role: "user" });
         roles = ["user"];

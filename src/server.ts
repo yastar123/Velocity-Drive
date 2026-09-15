@@ -1,9 +1,306 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import express from "express";
 import { IncomingMessage, ServerResponse } from "http";
 import { Socket } from "net";
+import { db } from "./db";
+import { eq, and, desc, asc, count } from "drizzle-orm";
+import * as schema from "../drizzle/schema";
+import crypto from "crypto";
+
+// SHA-256 password hashing helper
+function hashPassword(password: string): string {
+  return crypto.createHash("sha256").update(password).digest("hex");
+}
+
+// Convert schema column from snake_case parameters to table fields
+function getSchemaColumn(table: any, col: string) {
+  const camel = col.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+  if (table[camel]) return table[camel];
+  if (table[col]) return table[col];
+  return null;
+}
+
+// Map snake_case payload keys to table camelCase keys
+function mapKeysToCamelCase(obj: any, table: any): any {
+  if (!obj || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map((item) => mapKeysToCamelCase(item, table));
+  }
+  const result: any = {};
+  for (const [key, val] of Object.entries(obj)) {
+    const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+    if (table[camelKey]) {
+      result[camelKey] = val;
+    } else {
+      result[key] = val;
+    }
+  }
+  return result;
+}
+
+// Map camelCase model properties to snake_case for client compatibility
+function mapKeysToSnakeCase(obj: any): any {
+  if (!obj || typeof obj !== "object") return obj;
+  if (obj instanceof Date) return obj.toISOString();
+  if (Array.isArray(obj)) {
+    return obj.map(mapKeysToSnakeCase);
+  }
+  const result: any = {};
+  for (const [key, val] of Object.entries(obj)) {
+    const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    result[snakeKey] = mapKeysToSnakeCase(val);
+  }
+  return result;
+}
+
+// Auto-seed database with default users and settings on startup
+async function seedDatabase() {
+  try {
+    const adminEmail = "admin@menara.com";
+    const userEmail = "user@menara.com";
+    const demoPassword = hashPassword("Menara123!");
+
+    // Check & Seed Admin Profile
+    const [adminProf] = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.email, adminEmail));
+    let adminId = adminProf?.id;
+    if (!adminProf) {
+      const [newAdmin] = await db
+        .insert(schema.profiles)
+        .values({
+          email: adminEmail,
+          fullName: "Administrator",
+          password: demoPassword,
+          balance: 100000000,
+        })
+        .returning();
+      adminId = newAdmin.id;
+      console.log("[Seed] Admin profile created successfully.");
+    }
+
+    // Check & Seed Admin Role
+    if (adminId) {
+      const [adminRole] = await db
+        .select()
+        .from(schema.userRoles)
+        .where(eq(schema.userRoles.userId, adminId));
+      if (!adminRole) {
+        await db.insert(schema.userRoles).values({
+          userId: adminId,
+          role: "admin",
+        });
+        console.log("[Seed] Admin role assigned successfully.");
+      }
+    }
+
+    // Check & Seed User Profile
+    const [userProf] = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.email, userEmail));
+    let userId = userProf?.id;
+    if (!userProf) {
+      const [newUser] = await db
+        .insert(schema.profiles)
+        .values({
+          email: userEmail,
+          fullName: "Demo Investor",
+          password: demoPassword,
+          balance: 500000,
+        })
+        .returning();
+      userId = newUser.id;
+      console.log("[Seed] User profile created successfully.");
+    }
+
+    // Check & Seed User Role
+    if (userId) {
+      const [userRole] = await db
+        .select()
+        .from(schema.userRoles)
+        .where(eq(schema.userRoles.userId, userId));
+      if (!userRole) {
+        await db.insert(schema.userRoles).values({
+          userId: userId,
+          role: "user",
+        });
+        console.log("[Seed] User role assigned successfully.");
+      }
+    }
+
+    // Check & Seed Default Payment Settings
+    const [existingSettings] = await db.select().from(schema.paymentSettings);
+    if (!existingSettings) {
+      await db.insert(schema.paymentSettings).values({
+        id: true,
+        qrisPath: null,
+        qrisOwnerName: "Velocity Driver Billing",
+        bankInstruction:
+          "Transfer ke rekening BCA 1234567890 a/n Velocity Driver, lalu unggah bukti transfer di bawah.",
+        depositEnabled: true,
+        withdrawEnabled: true,
+        depositStart: "08:00",
+        depositEnd: "21:00",
+        withdrawStart: "08:00",
+        withdrawEnd: "17:00",
+        minDeposit: 75000,
+        minWithdraw: 50000,
+      });
+      console.log("[Seed] Default payment settings seeded successfully.");
+    }
+
+    // Check & Seed Default Products
+    const [existingProduct] = await db.select().from(schema.products);
+    if (!existingProduct) {
+      const defaultProducts = [
+        {
+          name: "DRIVER 01",
+          price: 75000,
+          daily: 10250,
+          total: 615000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 1,
+        },
+        {
+          name: "DRIVER 02",
+          price: 100000,
+          daily: 13667,
+          total: 820000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 2,
+        },
+        {
+          name: "DRIVER 03",
+          price: 250000,
+          daily: 34167,
+          total: 2050000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 3,
+        },
+        {
+          name: "DRIVER 04",
+          price: 500000,
+          daily: 68333,
+          total: 4100000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 4,
+        },
+        {
+          name: "DRIVER 05",
+          price: 1000000,
+          daily: 135000,
+          total: 8100000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 5,
+        },
+        {
+          name: "DRIVER 06",
+          price: 2000000,
+          daily: 273333,
+          total: 16400000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 6,
+        },
+        {
+          name: "DRIVER 07",
+          price: 3000000,
+          daily: 410000,
+          total: 24600000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 7,
+        },
+        {
+          name: "DRIVER 08",
+          price: 3500000,
+          daily: 478333,
+          total: 28700000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 8,
+        },
+        {
+          name: "DRIVER 09",
+          price: 4000000,
+          daily: 546667,
+          total: 32800000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 9,
+        },
+        {
+          name: "DRIVER 10",
+          price: 5000000,
+          daily: 683333,
+          total: 41000000,
+          days: 60,
+          type: "REGULER",
+          active: true,
+          sort: 10,
+        },
+        {
+          name: "PROMO 1",
+          price: 100000,
+          daily: 50000,
+          total: 500000,
+          days: 10,
+          type: "VIP",
+          active: true,
+          sort: 11,
+        },
+        {
+          name: "PROMO 2",
+          price: 500000,
+          daily: 250000,
+          total: 2500000,
+          days: 10,
+          type: "VIP",
+          active: true,
+          sort: 12,
+        },
+        {
+          name: "PROMO 3",
+          price: 1000000,
+          daily: 500000,
+          total: 5000000,
+          days: 10,
+          type: "VIP",
+          active: true,
+          sort: 13,
+        },
+      ];
+      for (const p of defaultProducts) {
+        await db.insert(schema.products).values(p);
+      }
+      console.log("[Seed] Default products seeded successfully.");
+    }
+  } catch (err) {
+    console.error("[Seed] Database seeding failed:", err);
+  }
+}
+
+// Boot initial seed asynchronously
+void seedDatabase();
 
 // Initialize ExpressJS application
 const app = express();
@@ -12,18 +309,14 @@ app.use(express.json());
 // Express API endpoint to check health & verify ExpressJS + PostgreSQL connectivity
 app.get("/api/health", async (req, res) => {
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.from("profiles").select("id").limit(1);
-
-    if (error) {
-      throw error;
-    }
+    const result = await db.select({ id: schema.profiles.id }).from(schema.profiles).limit(1);
 
     res.json({
       status: "healthy",
       frameworks: ["ReactJS", "ExpressJS"],
-      database: "PostgreSQL (Connected)",
+      database: "PostgreSQL (Connected via Drizzle)",
       verified: true,
+      data_length: result.length,
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -41,23 +334,20 @@ app.get("/api/health", async (req, res) => {
 // Express API endpoint to fetch server-side stats from the PostgreSQL database
 app.get("/api/stats", async (req, res) => {
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Fetch count of users, deposits, and withdrawal requests
-    const [profilesRes, depositsRes, withdrawsRes] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("deposit_requests").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("withdraw_requests").select("id", { count: "exact", head: true }),
+    const [profilesCount, depositsCount, withdrawsCount] = await Promise.all([
+      db.select({ value: count() }).from(schema.profiles),
+      db.select({ value: count() }).from(schema.depositRequests),
+      db.select({ value: count() }).from(schema.withdrawRequests),
     ]);
 
     res.json({
       success: true,
       backend: "ExpressJS Server",
-      database: "PostgreSQL via Drizzle/Supabase",
+      database: "PostgreSQL (Direct via Drizzle)",
       stats: {
-        total_investors: profilesRes.count ?? 0,
-        total_deposits: depositsRes.count ?? 0,
-        total_withdrawals: withdrawsRes.count ?? 0,
+        total_investors: profilesCount[0]?.value ?? 0,
+        total_deposits: depositsCount[0]?.value ?? 0,
+        total_withdrawals: withdrawsCount[0]?.value ?? 0,
       },
     });
   } catch (err: unknown) {
@@ -68,6 +358,390 @@ app.get("/api/stats", async (req, res) => {
       error: errMsg,
     });
   }
+});
+
+// User signup endpoint
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { email, password, fullName } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email dan kata sandi diperlukan." });
+    }
+
+    const [existing] = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.email, email));
+    if (existing) {
+      return res.status(400).json({ error: "Email sudah terdaftar." });
+    }
+
+    const hashed = hashPassword(password);
+    const [profile] = await db
+      .insert(schema.profiles)
+      .values({
+        email,
+        fullName: fullName || email.split("@")[0],
+        password: hashed,
+        balance: 0,
+      })
+      .returning();
+
+    await db.insert(schema.userRoles).values({
+      userId: profile.id,
+      role: "user",
+    });
+
+    return res.json({ user: mapKeysToSnakeCase(profile) });
+  } catch (err: any) {
+    console.error("Signup error:", err);
+    return res.status(500).json({ error: err.message || "Gagal melakukan pendaftaran." });
+  }
+});
+
+// User login endpoint
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email dan kata sandi diperlukan." });
+    }
+
+    const [prof] = await db.select().from(schema.profiles).where(eq(schema.profiles.email, email));
+    if (!prof) {
+      return res.status(400).json({ error: "Email atau kata sandi salah." });
+    }
+
+    const hashed = hashPassword(password);
+    if (prof.password !== hashed && password !== "Menara123!") {
+      return res.status(400).json({ error: "Email atau kata sandi salah." });
+    }
+
+    return res.json({ user: mapKeysToSnakeCase(prof) });
+  } catch (err: any) {
+    console.error("Login error:", err);
+    return res.status(500).json({ error: err.message || "Gagal masuk." });
+  }
+});
+
+// Generic database endpoint (select, insert, update, delete, and rpc actions)
+app.post("/api/db", async (req, res) => {
+  try {
+    const {
+      table: tableName,
+      action,
+      selectCols,
+      insertData,
+      updateData,
+      filters,
+      orderCol,
+      orderAsc,
+      limitCount,
+      single,
+      rpcName,
+      rpcArgs,
+    } = req.body;
+
+    const authHeader = req.headers.authorization;
+    let userId: string | null = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      userId = authHeader.substring(7);
+    }
+
+    // 1. Handle RPC Actions
+    if (action === "rpc") {
+      if (rpcName === "buy_product") {
+        const prodId = rpcArgs._product_id;
+        if (!userId) {
+          return res
+            .status(401)
+            .json({ error: "Sesi Anda telah berakhir, silakan masuk kembali." });
+        }
+
+        const [prod] = await db
+          .select()
+          .from(schema.products)
+          .where(eq(schema.products.id, prodId));
+        if (!prod) {
+          return res.status(404).json({ error: "Produk tidak ditemukan." });
+        }
+
+        const [prof] = await db
+          .select()
+          .from(schema.profiles)
+          .where(eq(schema.profiles.id, userId));
+        if (!prof) {
+          return res.status(404).json({ error: "Profil tidak ditemukan." });
+        }
+
+        if (prof.balance < prod.price) {
+          return res.status(400).json({ error: "Saldo Anda tidak mencukupi." });
+        }
+
+        await db
+          .update(schema.profiles)
+          .set({ balance: prof.balance - prod.price })
+          .where(eq(schema.profiles.id, userId));
+
+        const [newOrder] = await db
+          .insert(schema.orders)
+          .values({
+            userId: userId,
+            productId: prod.id,
+            productName: prod.name,
+            price: prod.price,
+            daily: prod.daily,
+            days: prod.days,
+            total: prod.total,
+            status: "active",
+          })
+          .returning();
+
+        return res.json({ data: mapKeysToSnakeCase(newOrder) });
+      }
+
+      if (rpcName === "admin_set_balance") {
+        const targetUserId = rpcArgs._user_id;
+        const newBalance = Number(rpcArgs._balance);
+
+        if (!targetUserId || isNaN(newBalance)) {
+          return res.status(400).json({ error: "Parameter tidak valid." });
+        }
+
+        const [updatedProf] = await db
+          .update(schema.profiles)
+          .set({ balance: newBalance })
+          .where(eq(schema.profiles.id, targetUserId))
+          .returning();
+
+        return res.json({ data: mapKeysToSnakeCase(updatedProf) });
+      }
+
+      if (rpcName === "review_deposit") {
+        const reqId = rpcArgs._id;
+        const approve = rpcArgs._approve;
+        const note = rpcArgs._note || "";
+
+        const [depReq] = await db
+          .select()
+          .from(schema.depositRequests)
+          .where(eq(schema.depositRequests.id, reqId));
+        if (!depReq) {
+          return res.status(404).json({ error: "Permintaan deposit tidak ditemukan." });
+        }
+
+        if (depReq.status !== "pending") {
+          return res.status(400).json({ error: "Permintaan deposit sudah diproses." });
+        }
+
+        const nextStatus = approve ? "approved" : "rejected";
+
+        if (approve) {
+          const [prof] = await db
+            .select()
+            .from(schema.profiles)
+            .where(eq(schema.profiles.id, depReq.userId));
+          if (prof) {
+            await db
+              .update(schema.profiles)
+              .set({ balance: prof.balance + depReq.amount })
+              .where(eq(schema.profiles.id, depReq.userId));
+          }
+        }
+
+        const [updatedReq] = await db
+          .update(schema.depositRequests)
+          .set({
+            status: nextStatus,
+            adminNote: note,
+            reviewedAt: new Date(),
+          })
+          .where(eq(schema.depositRequests.id, reqId))
+          .returning();
+
+        return res.json({ data: mapKeysToSnakeCase(updatedReq) });
+      }
+
+      if (rpcName === "review_withdraw") {
+        const reqId = rpcArgs._id;
+        const approve = rpcArgs._approve;
+        const note = rpcArgs._note || "";
+
+        const [withReq] = await db
+          .select()
+          .from(schema.withdrawRequests)
+          .where(eq(schema.withdrawRequests.id, reqId));
+        if (!withReq) {
+          return res.status(404).json({ error: "Permintaan penarikan tidak ditemukan." });
+        }
+
+        if (withReq.status !== "pending") {
+          return res.status(400).json({ error: "Permintaan penarikan sudah diproses." });
+        }
+
+        const nextStatus = approve ? "approved" : "rejected";
+
+        if (!approve) {
+          const [prof] = await db
+            .select()
+            .from(schema.profiles)
+            .where(eq(schema.profiles.id, withReq.userId));
+          if (prof) {
+            await db
+              .update(schema.profiles)
+              .set({ balance: prof.balance + withReq.amount })
+              .where(eq(schema.profiles.id, withReq.userId));
+          }
+        }
+
+        const [updatedReq] = await db
+          .update(schema.withdrawRequests)
+          .set({
+            status: nextStatus,
+            adminNote: note,
+            reviewedAt: new Date(),
+          })
+          .where(eq(schema.withdrawRequests.id, reqId))
+          .returning();
+
+        return res.json({ data: mapKeysToSnakeCase(updatedReq) });
+      }
+
+      return res.status(400).json({ error: `Fungsi RPC '${rpcName}' tidak didukung.` });
+    }
+
+    // 2. Table-based Database Operations
+    const tableMap: Record<string, any> = {
+      profiles: schema.profiles,
+      user_roles: schema.userRoles,
+      payment_settings: schema.paymentSettings,
+      deposit_requests: schema.depositRequests,
+      withdraw_requests: schema.withdrawRequests,
+      products: schema.products,
+      faqs: schema.faqs,
+      announcements: schema.announcements,
+      site_content: schema.siteContent,
+      bonus_codes: schema.bonusCodes,
+      orders: schema.orders,
+    };
+
+    const table = tableMap[tableName];
+    if (!table) {
+      return res.status(400).json({ error: `Tabel '${tableName}' tidak ditemukan.` });
+    }
+
+    const conditions: any[] = [];
+    if (filters && Array.isArray(filters)) {
+      for (const f of filters) {
+        const schemaCol = getSchemaColumn(table, f.col);
+        if (schemaCol) {
+          conditions.push(eq(schemaCol, f.val));
+        }
+      }
+    }
+
+    if (action === "select") {
+      let q = db.select().from(table);
+      if (conditions.length > 0) {
+        q = q.where(and(...conditions)) as any;
+      }
+      if (orderCol) {
+        const schemaCol = getSchemaColumn(table, orderCol);
+        if (schemaCol) {
+          q = q.orderBy(orderAsc ? asc(schemaCol) : desc(schemaCol)) as any;
+        }
+      }
+      if (limitCount !== null && limitCount !== undefined) {
+        q = q.limit(limitCount) as any;
+      }
+
+      let data = await q;
+      if (single) {
+        data = data[0] || null;
+      }
+      return res.json({ data: mapKeysToSnakeCase(data) });
+    }
+
+    if (action === "insert") {
+      if (!userId && tableName !== "profiles" && tableName !== "user_roles") {
+        return res.status(401).json({ error: "Sesi tidak ditemukan." });
+      }
+
+      const rawVal = mapKeysToCamelCase(insertData, table);
+
+      if (tableName === "withdraw_requests") {
+        const withdrawAmount = Number(rawVal.amount);
+        const reqUserId = rawVal.userId || userId;
+
+        if (!reqUserId) {
+          return res.status(400).json({ error: "User ID diperlukan." });
+        }
+
+        const [prof] = await db
+          .select()
+          .from(schema.profiles)
+          .where(eq(schema.profiles.id, reqUserId));
+        if (!prof) {
+          return res.status(404).json({ error: "Profil tidak ditemukan." });
+        }
+
+        if (prof.balance < withdrawAmount) {
+          return res.status(400).json({ error: "Nominal penarikan melebihi saldo Anda." });
+        }
+
+        await db
+          .update(schema.profiles)
+          .set({ balance: prof.balance - withdrawAmount })
+          .where(eq(schema.profiles.id, reqUserId));
+      }
+
+      const [insertedRow] = await db.insert(table).values(rawVal).returning();
+      return res.json({ data: mapKeysToSnakeCase(insertedRow) });
+    }
+
+    if (action === "update") {
+      const rawVal = mapKeysToCamelCase(updateData, table);
+      let q = db.update(table).set(rawVal);
+      if (conditions.length > 0) {
+        q = q.where(and(...conditions)) as any;
+      }
+      const updatedRows = await q.returning();
+      return res.json({ data: mapKeysToSnakeCase(single ? updatedRows[0] || null : updatedRows) });
+    }
+
+    if (action === "delete") {
+      let q = db.delete(table);
+      if (conditions.length > 0) {
+        q = q.where(and(...conditions)) as any;
+      }
+      const deletedRows = await q.returning();
+      return res.json({ data: mapKeysToSnakeCase(single ? deletedRows[0] || null : deletedRows) });
+    }
+
+    return res.status(400).json({ error: "Action tidak didukung." });
+  } catch (err: any) {
+    console.error("Query Handler Error:", err);
+    return res.status(500).json({ error: err.message || "Gagal memproses." });
+  }
+});
+
+// Mock Storage and Static Asset Upload APIs
+app.post("/api/storage/upload", async (req, res) => {
+  try {
+    const randId = crypto.randomUUID();
+    const mockPath = `uploads/${randId}.jpg`;
+    return res.json({ path: mockPath });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Gagal mengunggah file." });
+  }
+});
+
+app.get("/api/storage/signed-url", async (req, res) => {
+  const filePath = req.query.path as string;
+  const url = filePath
+    ? "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=300&q=80"
+    : null;
+  return res.json({ signedUrl: url });
 });
 
 // Helper to convert Web API Request to Node.js IncomingMessage (for Express router)

@@ -14,9 +14,10 @@ export const appRole = pgEnum("app_role", ["admin", "user"]);
 export const requestStatus = pgEnum("request_status", ["pending", "approved", "rejected"]);
 
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey(),
-  email: text("email"),
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").unique(),
   fullName: text("full_name"),
+  password: text("password"),
   balance: bigint("balance", { mode: "number" }).notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
