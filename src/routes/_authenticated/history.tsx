@@ -54,7 +54,7 @@ function Page() {
         detail: d.method,
         status: d.status as DepositRequest["status"],
         note: d.admin_note,
-        proof: null,
+        proof: d.proof_path,
         created_at: d.created_at,
       })),
       ...(wit.data ?? []).map((w) => ({
@@ -141,8 +141,16 @@ function Page() {
             )}
             {i.proof && (
               <div className="mt-3">
-                <p className="label">Bukti Transfer Admin</p>
-                <PaymentImage path={i.proof} alt="Bukti transfer dari admin" className="max-h-72" />
+                <p className="label">
+                  {i.kind === "Deposit" ? "Bukti Pembayaran Pengguna" : "Bukti Transfer Admin"}
+                </p>
+                <PaymentImage
+                  path={i.proof}
+                  alt={
+                    i.kind === "Deposit" ? "Bukti pembayaran pengguna" : "Bukti transfer dari admin"
+                  }
+                  className="max-h-72"
+                />
               </div>
             )}
           </Card>

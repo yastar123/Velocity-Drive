@@ -248,14 +248,27 @@ class StorageBucket {
 
   async upload(path: string, file: File, options?: any) {
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("path", path);
-      formData.append("bucket", this.bucket);
+      // Read file to Base64 Data URL so it is transferred reliably and preserved
+      const fileData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Gagal membaca berkas gambar dari perangkat."));
+        reader.readAsDataURL(file);
+      });
 
       const response = await fetch("/api/storage/upload", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          path,
+          bucket: this.bucket,
+          fileData,
+          fileName: file.name,
+          contentType: file.type || "image/jpeg",
+          size: file.size,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Upload gagal");
@@ -267,6 +280,11 @@ class StorageBucket {
 
   async createSignedUrl(path: string, expiry: number) {
     try {
+      if (!path) return { data: null, error: null };
+      if (path.startsWith("data:") || path.startsWith("http://") || path.startsWith("https://")) {
+        return { data: { signedUrl: path }, error: null };
+      }
+
       const response = await fetch(
         `/api/storage/signed-url?path=${encodeURIComponent(path)}&expiry=${expiry}`,
       );

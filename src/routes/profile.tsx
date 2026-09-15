@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Camera, Check } from "lucide-react";
 import {
   AppShell,
   Card,
@@ -9,6 +10,7 @@ import {
   SectionTitle,
   Stat,
 } from "@/components/menara-ui";
+import { DeviceImageUpload } from "@/components/device-image-upload";
 import { meta, rupiah } from "@/lib/menara-data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -36,6 +38,10 @@ function Page() {
   const [isMounted, setIsMounted] = useState(false);
   const [balance, setBalance] = useState(0);
   const [name, setName] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [showAvatarUpload, setShowAvatarUpload] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarSavedMsg, setAvatarSavedMsg] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -43,6 +49,9 @@ function Page() {
 
   useEffect(() => {
     if (!isMounted || !user) return;
+    const cachedAvatar = localStorage.getItem(`velocity_avatar_${user.id}`);
+    if (cachedAvatar) setAvatar(cachedAvatar);
+
     void supabase
       .from("profiles")
       .select("full_name,balance")
@@ -55,6 +64,27 @@ function Page() {
         }
       });
   }, [user, isMounted]);
+
+  async function handleAvatarSave(file: File | null) {
+    setAvatarFile(file);
+    if (!file || !user) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setAvatar(dataUrl);
+        localStorage.setItem(`velocity_avatar_${user.id}`, dataUrl);
+        setAvatarSavedMsg(true);
+        setTimeout(() => {
+          setAvatarSavedMsg(false);
+          setShowAvatarUpload(false);
+        }, 1500);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      // ignore
+    }
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -72,16 +102,63 @@ function Page() {
       <PageIntro eyebrow="RUANG PERSONAL ANDA" title="Profil & Pusat Akun" />
       <Card>
         <div className="flex items-center gap-3">
-          <div className="brand-mark !size-12 text-lg">{initials}</div>
-          <div className="min-w-0">
-            <h2 className="truncate font-display text-lg font-bold">
-              {name || (loading ? "Memuat…" : "Tamu")}
-            </h2>
+          <div className="relative">
+            {avatar ? (
+              <img
+                src={avatar}
+                alt="Foto Profil"
+                className="size-14 rounded-full border-2 border-primary object-cover shadow-sm"
+              />
+            ) : (
+              <div className="brand-mark !size-14 text-lg">{initials}</div>
+            )}
+            <button
+              type="button"
+              id="change-avatar-btn"
+              onClick={() => setShowAvatarUpload(!showAvatarUpload)}
+              aria-label="Ubah foto profil dari perangkat"
+              className="absolute -bottom-1 -right-1 grid size-6 place-items-center rounded-full bg-primary text-black shadow-sm transition-transform hover:scale-110 active:scale-95"
+            >
+              <Camera size={13} />
+            </button>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between">
+              <h2 className="truncate font-display text-lg font-bold">
+                {name || (loading ? "Memuat…" : "Tamu")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowAvatarUpload(!showAvatarUpload)}
+                className="text-[11px] font-medium text-primary hover:underline"
+              >
+                {showAvatarUpload ? "Tutup" : "Ganti Foto"}
+              </button>
+            </div>
             <p className="truncate text-xs text-muted-foreground">
               {user ? `Peran: ${role === "admin" ? "Admin" : "Pengguna"}` : "Belum masuk"}
             </p>
           </div>
         </div>
+
+        {showAvatarUpload && (
+          <div className="mt-4 border-t border-border pt-3">
+            <DeviceImageUpload
+              id="profile-avatar-upload"
+              label="Unggah Foto Profil dari Perangkat"
+              hint="Pilih foto selfie atau avatar dari galeri HP atau komputer Anda."
+              value={avatarFile}
+              currentImageUrl={avatar}
+              onChange={handleAvatarSave}
+            />
+            {avatarSavedMsg && (
+              <p className="mt-2 flex items-center justify-center gap-1 text-xs text-emerald-500 font-medium">
+                <Check size={14} /> Foto profil berhasil diperbarui!
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="mt-4 data-row">
           <span>Email</span>
           <strong className="text-right text-[11px]">{user?.email ?? "-"}</strong>

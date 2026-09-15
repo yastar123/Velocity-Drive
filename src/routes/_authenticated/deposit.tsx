@@ -11,6 +11,7 @@ import {
   Stat,
 } from "@/components/menara-ui";
 import { PaymentImage, ScheduleBanner, StatusBadge } from "@/components/payment-ui";
+import { DeviceImageUpload } from "@/components/device-image-upload";
 import { banks, meta, rupiah } from "@/lib/menara-data";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -193,17 +194,21 @@ function Page() {
               onChange={(e) => setSender(e.target.value)}
             />
           </label>
-          <label>
-            <span className="label">Bukti Pembayaran</span>
-            <input
-              ref={fileInput}
-              className="field"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          <div>
+            <DeviceImageUpload
+              id="deposit-proof-upload"
+              label="Bukti Pembayaran (Unggah dari Perangkat)"
+              hint="Tarik foto bukti transfer ke sini atau klik untuk memilih dari galeri perangkat (JPG, PNG, WEBP)."
+              value={file}
+              onChange={(f) => setFile(f)}
+              disabled={busy || !canSubmit}
             />
-          </label>
-          <button className="btn-primary w-full disabled:opacity-50" disabled={busy || !canSubmit}>
+          </div>
+          <button
+            id="deposit-submit-btn"
+            className="btn-primary w-full disabled:opacity-50"
+            disabled={busy || !canSubmit}
+          >
             <Upload size={15} /> {busy ? "Mengirim…" : "Kirim Permintaan Deposit"}
           </button>
           {!canSubmit && settings && (
@@ -237,6 +242,18 @@ function Page() {
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Catatan admin: {r.admin_note}
               </p>
+            )}
+            {r.proof_path && (
+              <div className="mt-2.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  Bukti Pembayaran Terunggah
+                </p>
+                <PaymentImage
+                  path={r.proof_path}
+                  alt={`Bukti deposit ${rupiah(r.amount)}`}
+                  className="max-h-48"
+                />
+              </div>
             )}
           </Card>
         ))}

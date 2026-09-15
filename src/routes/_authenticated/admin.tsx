@@ -1,10 +1,32 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Clock, ShieldCheck, Users } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowUpFromLine,
+  CheckCircle2,
+  Clock,
+  Crown,
+  ExternalLink,
+  Gift,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Menu,
+  Package,
+  RefreshCw,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  ShoppingBag,
+  Users,
+  X,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { meta, rupiah } from "@/lib/menara-data";
 import { PaymentImage, StatusBadge } from "@/components/payment-ui";
+import { DeviceImageUpload } from "@/components/device-image-upload";
 import {
   fetchPaymentSettings,
   hhmm,
@@ -63,9 +85,13 @@ function AdminPage() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
+    if (user?.email === "admin@velocitydriver.com") return;
     if (!loading && role && !isAdmin) void navigate({ to: "/home", replace: true });
-  }, [loading, role, isAdmin, navigate]);
+  }, [loading, role, isAdmin, navigate, user?.email]);
 
   const load = useCallback(async () => {
     const [{ data: profiles, error: pe }, { data: roles }, dep, wit, s] = await Promise.all([
@@ -229,14 +255,36 @@ function AdminPage() {
     .filter((w) => w.status === "approved")
     .reduce((n, w) => n + Number(w.amount), 0);
 
-  if (loading || (!role && !err)) {
+  const navItems = [
+    { id: "Ringkasan" as const, label: "Ringkasan Dasbor", icon: LayoutDashboard },
+    {
+      id: "Deposit" as const,
+      label: "Verifikasi Deposit",
+      icon: ArrowDownToLine,
+      badge: pendingDep,
+    },
+    {
+      id: "Penarikan" as const,
+      label: "Verifikasi Penarikan",
+      icon: ArrowUpFromLine,
+      badge: pendingWit,
+    },
+    { id: "Akun" as const, label: "Kelola Pengguna", icon: Users, count: rows.length },
+    { id: "Produk" as const, label: "Kelola Produk", icon: Package, count: totals.products },
+    { id: "Pesanan" as const, label: "Riwayat Pesanan", icon: ShoppingBag, count: totals.orders },
+    { id: "Konten" as const, label: "Pengumuman & Konten", icon: Megaphone },
+    { id: "Bonus" as const, label: "Kode Bonus", icon: Gift },
+    { id: "Pengaturan" as const, label: "Pengaturan Sistem", icon: Settings },
+  ];
+
+  if (loading || (!role && !err && user?.email !== "admin@velocitydriver.com")) {
     return (
       <main className="grid min-h-screen place-items-center bg-stage text-sm text-muted-foreground">
-        Memuat…
+        Memuat Panel Admin…
       </main>
     );
   }
-  if (!isAdmin) {
+  if (!isAdmin && user?.email !== "admin@velocitydriver.com") {
     return (
       <main className="grid min-h-screen place-items-center bg-stage text-sm text-muted-foreground">
         Akses ditolak.
@@ -245,213 +293,550 @@ function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-stage">
-      <div className="mx-auto min-h-screen w-full max-w-[430px] border-x border-border bg-background px-4 pb-16 pt-4 shadow-app">
-        <header className="mb-5 flex items-center gap-3">
-          <Link to="/profile" className="icon-btn" aria-label="Kembali">
-            <ArrowLeft size={18} />
-          </Link>
-          <div className="min-w-0">
-            <p className="truncate font-display text-sm font-bold text-primary">PANEL ADMIN</p>
-            <p className="truncate text-[9px] font-semibold uppercase text-muted-foreground">
-              {user?.email}
+    <div className="min-h-screen bg-stage text-foreground flex flex-col lg:flex-row">
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Admin Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#0c1017] border-r border-border/80 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Brand Header */}
+        <div className="p-4 border-b border-border/60 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/40 flex items-center justify-center text-primary shadow-sm shadow-primary/20">
+              <Crown size={20} />
+            </div>
+            <div>
+              <h1 className="font-display font-bold text-sm tracking-wider text-primary leading-tight">
+                VELOCITY DRIVER
+              </h1>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                ADMIN CONSOLE
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="lg:hidden p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Tutup sidebar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Admin Profile Box */}
+        <div className="p-3.5 mx-3 my-3 rounded-lg bg-muted/30 border border-border/60 flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full bg-primary text-black font-extrabold flex items-center justify-center text-xs shrink-0 shadow-sm">
+            {user?.email?.charAt(0).toUpperCase() || "A"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold truncate text-foreground">
+              {user?.email || "admin@velocitydriver.com"}
             </p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] font-bold text-primary uppercase tracking-wider">
+                SUPER ADMIN
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Menu */}
+        <div className="px-3 flex-1 overflow-y-auto space-y-1 py-1">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5">
+            Navigasi Admin
+          </p>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setTab(item.id);
+                  setSidebarOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                  active
+                    ? "bg-primary text-black font-bold shadow-sm shadow-primary/25"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon size={16} className={active ? "text-black" : "text-primary/80"} />
+                  <span className="truncate">{item.label}</span>
+                </div>
+                {item.badge !== undefined && item.badge > 0 ? (
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      active ? "bg-black text-primary" : "bg-primary text-black animate-pulse"
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                ) : item.count !== undefined ? (
+                  <span
+                    className={`text-[10px] ${
+                      active ? "text-black/80 font-bold" : "text-muted-foreground"
+                    }`}
+                  >
+                    {item.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-border/60 space-y-2 bg-[#080b10]">
+          <Link
+            to="/home"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-secondary/70 hover:bg-secondary border border-border text-foreground transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <ExternalLink size={14} className="text-primary" />
+              <span>Buka Tampilan Investor</span>
+            </div>
+            <span className="text-muted-foreground text-xs">&rarr;</span>
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              await navigate({ to: "/auth", replace: true });
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <LogOut size={14} />
+            <span>Keluar Akun</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 lg:pl-72 flex flex-col min-h-screen">
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 lg:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="lg:hidden p-2 rounded-lg bg-secondary border border-border text-foreground"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Buka menu admin"
+            >
+              <Menu size={18} />
+            </button>
+            <div>
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
+                <span>Admin Console</span>
+                <span>/</span>
+                <span className="text-primary font-bold">{tab}</span>
+              </div>
+              <h2 className="font-display text-base lg:text-lg font-bold text-foreground leading-tight">
+                {tab === "Ringkasan" ? "Dasbor Ringkasan Sistem" : tab}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => void handleRefresh()}
+              disabled={refreshing}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-secondary hover:bg-secondary/80 text-xs font-medium text-foreground transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={13} className={refreshing ? "animate-spin text-primary" : ""} />
+              <span>{refreshing ? "Memperbarui…" : "Segarkan"}</span>
+            </button>
+
+            <Link
+              to="/home"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-black font-bold text-xs hover:opacity-90 shadow-sm transition-opacity"
+            >
+              <ExternalLink size={13} />
+              <span className="hidden sm:inline">Tampilan Investor</span>
+              <span className="sm:hidden">Investor</span>
+            </Link>
           </div>
         </header>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="stat">
-            <span>Total Akun</span>
-            <strong>{rows.length}</strong>
-          </div>
-          <div className="stat">
-            <span>Deposit Baru</span>
-            <strong className="text-primary">{pendingDep}</strong>
-          </div>
-          <div className="stat">
-            <span>Tarik Baru</span>
-            <strong className="text-primary">{pendingWit}</strong>
-          </div>
-        </div>
+        {/* Content Body */}
+        <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+          {err && <p className="notice text-destructive">{err}</p>}
+          {msg && <p className="notice">{msg}</p>}
 
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {tabs.map((t) => (
-            <button
-              key={t}
-              className={`${tab === t ? "btn-primary" : "btn-secondary"} !px-2 !text-[11px]`}
-              onClick={() => setTab(t)}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {err && <p className="notice mt-3 text-destructive">{err}</p>}
-        {msg && <p className="notice mt-3">{msg}</p>}
-
-        {tab === "Ringkasan" && (
-          <section className="mt-5 space-y-3">
-            <h2 className="font-display text-base font-bold">Ringkasan Aplikasi</h2>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="stat">
-                <span>Total Saldo Pengguna</span>
-                <strong className="text-primary">{rupiah(totalBalance)}</strong>
-              </div>
-              <div className="stat">
-                <span>Admin Aktif</span>
-                <strong>{admins}</strong>
-              </div>
-              <div className="stat">
-                <span>Deposit Disetujui</span>
-                <strong className="text-primary">{rupiah(depApproved)}</strong>
-              </div>
-              <div className="stat">
-                <span>Penarikan Disetujui</span>
-                <strong className="text-primary">{rupiah(witApproved)}</strong>
-              </div>
-              <div className="stat">
-                <span>Produk Aktif</span>
-                <strong>
-                  {totals.activeProducts}/{totals.products}
-                </strong>
-              </div>
-              <div className="stat">
-                <span>Pesanan Berjalan</span>
-                <strong>
-                  {totals.activeOrders}/{totals.orders}
-                </strong>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button className="btn-primary !text-[11px]" onClick={() => setTab("Deposit")}>
-                Proses Deposit ({pendingDep})
-              </button>
-              <button className="btn-primary !text-[11px]" onClick={() => setTab("Penarikan")}>
-                Proses Penarikan ({pendingWit})
-              </button>
-              <button className="btn-secondary !text-[11px]" onClick={() => setTab("Produk")}>
-                Kelola Produk
-              </button>
-              <button className="btn-secondary !text-[11px]" onClick={() => setTab("Konten")}>
-                Kelola Konten
-              </button>
-            </div>
-            <div className="notice">
-              <Clock className="shrink-0" size={16} />
-              <span>
-                Semua data di panel ini dapat ditambah, diubah, dan dihapus langsung: akun, saldo,
-                produk, pesanan, FAQ, pengumuman, teks halaman, kode bonus, dan pengaturan
-                pembayaran.
-              </span>
-            </div>
-          </section>
-        )}
-
-        {tab === "Deposit" && (
-          <section className="mt-5 space-y-2">
-            <h2 className="mb-3 font-display text-base font-bold">Permintaan Deposit</h2>
-            {deposits.map((d) => (
-              <DepositCard
-                key={d.id}
-                row={d}
-                name={nameOf(d.user_id)}
-                busy={busy === d.id}
-                onReview={(approve, note) => void reviewDeposit(d.id, approve, note)}
-              />
-            ))}
-            {deposits.length === 0 && (
-              <p className="text-sm text-muted-foreground">Belum ada permintaan deposit.</p>
-            )}
-          </section>
-        )}
-
-        {tab === "Penarikan" && (
-          <section className="mt-5 space-y-2">
-            <h2 className="mb-3 font-display text-base font-bold">Permintaan Penarikan</h2>
-            {withdraws.map((w) => (
-              <WithdrawCard
-                key={w.id}
-                row={w}
-                name={nameOf(w.user_id)}
-                balance={balanceOf(w.user_id)}
-                busy={busy === w.id}
-                onReview={(approve, note, proof) => void reviewWithdraw(w, approve, note, proof)}
-              />
-            ))}
-            {withdraws.length === 0 && (
-              <p className="text-sm text-muted-foreground">Belum ada permintaan penarikan.</p>
-            )}
-          </section>
-        )}
-
-        {tab === "Akun" && (
-          <section className="mt-5">
-            <label className="label" htmlFor="cari">
-              Cari akun
-            </label>
-            <input
-              id="cari"
-              className="field"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Nama atau email"
-            />
-            <div className="mb-3 mt-6 flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 font-display text-base font-bold">
-                <Users size={16} /> Daftar Akun
-              </h2>
-              <span className="text-xs text-muted-foreground">
-                {filtered.length} hasil • {admins} admin
-              </span>
-            </div>
-            <div className="space-y-2">
-              {filtered.map((r) => (
-                <AccountCard
-                  key={r.id}
-                  row={r}
-                  self={r.id === user?.id}
-                  busy={busy === r.id}
-                  onRole={(next) => void setRole(r, next)}
-                  onBalance={(value) => void saveBalance(r, value)}
-                />
-              ))}
-              {filtered.length === 0 && (
-                <p className="text-sm text-muted-foreground">Tidak ada akun yang cocok.</p>
+          {tab === "Ringkasan" && (
+            <div className="space-y-6">
+              {/* Top Quick Attention Cards if pending exists */}
+              {(pendingDep > 0 || pendingWit > 0) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {pendingDep > 0 && (
+                    <div className="rounded-lg border border-primary/40 bg-primary/10 p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                          <ArrowDownToLine size={20} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-foreground">
+                            {pendingDep} Deposit Menunggu
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Verifikasi bukti pembayaran pengguna
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setTab("Deposit")}
+                        className="btn-primary !py-1.5 !px-3 !text-xs"
+                      >
+                        Proses &rarr;
+                      </button>
+                    </div>
+                  )}
+                  {pendingWit > 0 && (
+                    <div className="rounded-lg border border-primary/40 bg-primary/10 p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                          <ArrowUpFromLine size={20} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-foreground">
+                            {pendingWit} Penarikan Menunggu
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Kirim dana dan konfirmasi penarikan
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setTab("Penarikan")}
+                        className="btn-primary !py-1.5 !px-3 !text-xs"
+                      >
+                        Proses &rarr;
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
+
+              {/* Main Metric Cards Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="panel flex flex-col justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">
+                    Total Akun Pengguna
+                  </span>
+                  <p className="mt-2 text-2xl font-bold font-display text-foreground">
+                    {rows.length}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {admins} peran Administrator
+                  </p>
+                </div>
+
+                <div className="panel flex flex-col justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">
+                    Total Saldo Beredar
+                  </span>
+                  <p className="mt-2 text-2xl font-bold font-display text-primary">
+                    {rupiah(totalBalance)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Saldo seluruh investor</p>
+                </div>
+
+                <div className="panel flex flex-col justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">
+                    Deposit Disetujui
+                  </span>
+                  <p className="mt-2 text-2xl font-bold font-display text-foreground">
+                    {rupiah(depApproved)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-emerald-500 font-semibold">
+                    {deposits.filter((d) => d.status === "approved").length} transaksi sukses
+                  </p>
+                </div>
+
+                <div className="panel flex flex-col justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">
+                    Penarikan Disetujui
+                  </span>
+                  <p className="mt-2 text-2xl font-bold font-display text-foreground">
+                    {rupiah(witApproved)}
+                  </p>
+                  <p className="mt-1 text-[11px] text-emerald-500 font-semibold">
+                    {withdraws.filter((w) => w.status === "approved").length} pencairan sukses
+                  </p>
+                </div>
+              </div>
+
+              {/* Secondary Stats & Quick Controls */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="panel space-y-3 lg:col-span-2">
+                  <h3 className="font-display font-bold text-sm text-foreground flex items-center justify-between">
+                    <span>Aksi Cepat Manajemen</span>
+                    <span className="text-xs text-muted-foreground font-normal">Kontrol Penuh</span>
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <button
+                      className="p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-left transition-colors flex flex-col gap-1.5"
+                      onClick={() => setTab("Deposit")}
+                    >
+                      <ArrowDownToLine size={18} className="text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        Deposit ({pendingDep})
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Verifikasi transfer</span>
+                    </button>
+                    <button
+                      className="p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-left transition-colors flex flex-col gap-1.5"
+                      onClick={() => setTab("Penarikan")}
+                    >
+                      <ArrowUpFromLine size={18} className="text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        Penarikan ({pendingWit})
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">Pencairan dana</span>
+                    </button>
+                    <button
+                      className="p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-left transition-colors flex flex-col gap-1.5"
+                      onClick={() => setTab("Akun")}
+                    >
+                      <Users size={18} className="text-primary" />
+                      <span className="text-xs font-bold text-foreground">Akun & Saldo</span>
+                      <span className="text-[10px] text-muted-foreground">Ubah saldo / role</span>
+                    </button>
+                    <button
+                      className="p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-left transition-colors flex flex-col gap-1.5"
+                      onClick={() => setTab("Produk")}
+                    >
+                      <Package size={18} className="text-primary" />
+                      <span className="text-xs font-bold text-foreground">Produk Investasi</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {totals.products} total produk
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="pt-2">
+                    <div className="notice">
+                      <Clock className="shrink-0" size={16} />
+                      <span>
+                        Semua data di panel ini dapat ditambah, diubah, dan dihapus langsung: akun,
+                        saldo, produk investasi, pesanan berjalan, pengumuman, kode bonus, dan
+                        rekening QRIS / bank.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="panel space-y-3 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-display font-bold text-sm text-foreground mb-3">
+                      Status Operasional
+                    </h3>
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                        <span className="text-muted-foreground">Jam Deposit</span>
+                        <span className="font-mono font-semibold">
+                          {settings?.deposit_start ? hhmm(settings.deposit_start) : "00:00"} -{" "}
+                          {settings?.deposit_end ? hhmm(settings.deposit_end) : "23:59"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                        <span className="text-muted-foreground">Jam Penarikan</span>
+                        <span className="font-mono font-semibold">
+                          {settings?.withdraw_start ? hhmm(settings.withdraw_start) : "08:00"} -{" "}
+                          {settings?.withdraw_end ? hhmm(settings.withdraw_end) : "20:00"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                        <span className="text-muted-foreground">Produk Aktif</span>
+                        <span className="font-semibold text-primary">
+                          {totals.activeProducts} dari {totals.products}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Pesanan Aktif</span>
+                        <span className="font-semibold text-primary">
+                          {totals.activeOrders} dari {totals.orders}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setTab("Pengaturan")}
+                    className="btn-secondary !w-full !text-xs mt-2"
+                  >
+                    Buka Pengaturan Lengkap
+                  </button>
+                </div>
+              </div>
             </div>
-          </section>
-        )}
+          )}
 
-        {tab === "Produk" && <ProductsPanel />}
-        {tab === "Pesanan" && <OrdersPanel nameOf={nameOf} />}
-        {tab === "Konten" && <ContentPanel />}
-        {tab === "Bonus" && <BonusPanel />}
+          {tab === "Deposit" && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-base font-bold text-foreground">
+                    Verifikasi Permintaan Deposit
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Tinjau transfer dan bukti pembayaran dari investor ({deposits.length}{" "}
+                    permintaan)
+                  </p>
+                </div>
+                {pendingDep > 0 && (
+                  <span className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold border border-primary/40">
+                    {pendingDep} Menunggu Verifikasi
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {deposits.map((d) => (
+                  <DepositCard
+                    key={d.id}
+                    row={d}
+                    name={nameOf(d.user_id)}
+                    busy={busy === d.id}
+                    onReview={(approve, note) => void reviewDeposit(d.id, approve, note)}
+                  />
+                ))}
+              </div>
+              {deposits.length === 0 && (
+                <p className="text-sm text-muted-foreground p-8 text-center panel">
+                  Belum ada permintaan deposit.
+                </p>
+              )}
+            </section>
+          )}
 
-        {tab === "Pengaturan" && (
-          <SettingsPanel
-            settings={settings}
-            adminId={user?.id ?? ""}
-            onSaved={async (text) => {
-              setMsg(text);
-              setErr(null);
-              await load();
-            }}
-            onError={(text) => {
-              setErr(text);
-              setMsg(null);
-            }}
-          />
-        )}
+          {tab === "Penarikan" && (
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-display text-base font-bold text-foreground">
+                    Verifikasi Permintaan Penarikan Dana
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Kirim dana ke rekening bank / e-wallet investor ({withdraws.length} permintaan)
+                  </p>
+                </div>
+                {pendingWit > 0 && (
+                  <span className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold border border-primary/40">
+                    {pendingWit} Menunggu Proses
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {withdraws.map((w) => (
+                  <WithdrawCard
+                    key={w.id}
+                    row={w}
+                    name={nameOf(w.user_id)}
+                    balance={balanceOf(w.user_id)}
+                    busy={busy === w.id}
+                    onReview={(approve, note, proof) =>
+                      void reviewWithdraw(w, approve, note, proof)
+                    }
+                  />
+                ))}
+              </div>
+              {withdraws.length === 0 && (
+                <p className="text-sm text-muted-foreground p-8 text-center panel">
+                  Belum ada permintaan penarikan.
+                </p>
+              )}
+            </section>
+          )}
 
-        <div className="notice mt-6">
-          <ShieldCheck className="shrink-0" size={16} />
-          <span>
-            Menyetujui deposit menambah saldo pengguna, menyetujui penarikan mengurangi saldo.
-            Periksa bukti transfer sebelum memproses.
-          </span>
-        </div>
+          {tab === "Akun" && (
+            <section className="space-y-4">
+              <div className="panel">
+                <label className="label" htmlFor="cari">
+                  Cari Pengguna
+                </label>
+                <input
+                  id="cari"
+                  className="field"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Ketik nama atau alamat email pengguna…"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <h2 className="flex items-center gap-2 font-display text-base font-bold text-foreground">
+                  <Users size={16} /> Daftar Akun Terdaftar
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {filtered.length} hasil • {admins} admin
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filtered.map((r) => (
+                  <AccountCard
+                    key={r.id}
+                    row={r}
+                    self={r.id === user?.id}
+                    busy={busy === r.id}
+                    onRole={(next) => void setRole(r, next)}
+                    onBalance={(value) => void saveBalance(r, value)}
+                  />
+                ))}
+              </div>
+              {filtered.length === 0 && (
+                <p className="text-sm text-muted-foreground p-8 text-center panel">
+                  Tidak ada akun yang cocok.
+                </p>
+              )}
+            </section>
+          )}
+
+          {tab === "Produk" && <ProductsPanel />}
+          {tab === "Pesanan" && <OrdersPanel nameOf={nameOf} />}
+          {tab === "Konten" && <ContentPanel />}
+          {tab === "Bonus" && <BonusPanel />}
+
+          {tab === "Pengaturan" && (
+            <SettingsPanel
+              settings={settings}
+              adminId={user?.id ?? ""}
+              onSaved={async (text) => {
+                setMsg(text);
+                setErr(null);
+                await load();
+              }}
+              onError={(text) => {
+                setErr(text);
+                setMsg(null);
+              }}
+            />
+          )}
+
+          <div className="notice mt-6">
+            <ShieldCheck className="shrink-0" size={16} />
+            <span>
+              Menyetujui deposit menambah saldo pengguna, menyetujui penarikan mengurangi saldo.
+              Periksa bukti transfer sebelum memproses.
+            </span>
+          </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -567,12 +952,13 @@ function WithdrawCard({
       {pending && (
         <div className="mt-3 space-y-2">
           <div>
-            <p className="label">Bukti Transfer Manual (unggah sebelum menyetujui)</p>
-            <input
-              className="field"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setProof(e.target.files?.[0] ?? null)}
+            <DeviceImageUpload
+              id={`withdraw-proof-${row.id}`}
+              label="Bukti Transfer Manual (Unggah dari Perangkat)"
+              hint="Unggah bukti transfer dari perangkat untuk menyelesaikan verifikasi penarikan dana investor."
+              value={proof}
+              onChange={(f) => setProof(f)}
+              disabled={busy}
             />
           </div>
           <input
@@ -732,14 +1118,16 @@ function SettingsPanel({
       </h2>
 
       <div className="panel space-y-3">
-        <p className="label">Kode QRIS</p>
-        <PaymentImage path={form.qris_path} alt="Kode QRIS saat ini" className="max-h-72" />
-        <input
-          className="field"
-          type="file"
-          accept="image/*"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
+        <div>
+          <DeviceImageUpload
+            id="qris-image-upload"
+            label="Kode QRIS Pembayaran (Unggah dari Perangkat)"
+            hint="Tarik gambar kode QRIS baru ke sini atau klik untuk memilih file dari komputer/HP Anda."
+            value={file}
+            currentImageUrl={form.qris_path}
+            onChange={(f) => setFile(f)}
+          />
+        </div>
         <label>
           <span className="label">Nama Penerima QRIS</span>
           <input

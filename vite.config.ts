@@ -15,7 +15,7 @@ export default defineConfig({
     preview: {
       port: 5000,
       host: true,
-    }
+    },
   },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).

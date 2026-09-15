@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export function AppShell({
   children,
@@ -28,6 +29,7 @@ export function AppShell({
   title?: string;
   subtitle?: string;
 }) {
+  const { isAdmin } = useAuth();
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -48,6 +50,20 @@ export function AppShell({
   return (
     <main className="min-h-screen bg-stage">
       <div className="mx-auto min-h-screen w-full max-w-[430px] overflow-hidden border-x border-border bg-background shadow-app">
+        {isAdmin && (
+          <div className="bg-primary px-3.5 py-1.5 flex items-center justify-between text-xs font-bold text-black shadow-sm">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Crown size={14} className="shrink-0" />
+              <span className="truncate">Mode Admin Aktif</span>
+            </div>
+            <Link
+              to="/admin"
+              className="shrink-0 bg-black text-primary hover:bg-black/80 px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider transition-colors"
+            >
+              Buka Panel Admin &rarr;
+            </Link>
+          </div>
+        )}
         <header className="sticky top-0 z-40 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <div className="flex min-w-0 items-center gap-3">
@@ -89,6 +105,7 @@ export function AppShell({
   );
 }
 export function BottomNav() {
+  const { isAdmin } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const nav = [
     ["/home", "Home", Home],
@@ -96,11 +113,18 @@ export function BottomNav() {
     ["/vip", "Produk", Package],
     ["/my-team", "Team", Users],
     ["/profile", "Profil", UserRound],
+    ...(isAdmin ? [["/admin", "Admin", Crown] as const] : []),
   ] as const;
   return (
-    <nav className="fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 grid-cols-5 border-t border-border bg-nav px-1 py-2">
+    <nav
+      className={`fixed bottom-0 left-1/2 z-50 grid w-full max-w-[430px] -translate-x-1/2 ${isAdmin ? "grid-cols-6" : "grid-cols-5"} border-t border-border bg-nav px-1 py-2`}
+    >
       {nav.map(([to, label, Icon]) => (
-        <Link key={to} to={to} className={`nav-item ${path === to ? "nav-active" : ""}`}>
+        <Link
+          key={to}
+          to={to}
+          className={`nav-item ${path === to ? "nav-active" : ""} ${label === "Admin" ? "!text-primary font-bold" : ""}`}
+        >
           <Icon size={19} />
           <span>{label}</span>
         </Link>

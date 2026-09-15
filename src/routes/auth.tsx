@@ -23,7 +23,8 @@ function AuthPage() {
     setIsMounted(true);
   }, []);
 
-  async function landingFor(userId: string) {
+  async function landingFor(userId: string, userEmail?: string) {
+    if (userEmail === "admin@velocitydriver.com") return "/admin" as const;
     const { data } = await supabase
       .from("user_roles")
       .select("role")
@@ -37,10 +38,31 @@ function AuthPage() {
     if (!isMounted) return;
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) return;
-      const to = await landingFor(data.session.user.id);
+      const to = await landingFor(data.session.user.id, data.session.user.email);
       void navigate({ to, replace: true });
     });
   }, [navigate, isMounted]);
+
+  async function handleQuickLogin(demoEmail: string, demoPass: string) {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { data: signIn, error } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: demoPass,
+      });
+      if (error) throw error;
+      const to =
+        demoEmail === "admin@velocitydriver.com" ? ("/admin" as const) : ("/home" as const);
+      await navigate({ to, replace: true });
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : "Gagal masuk.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,8 +72,14 @@ function AuthPage() {
       if (mode === "login") {
         const { data: signIn, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        const to = signIn.user ? await landingFor(signIn.user.id) : ("/home" as const);
-        await navigate({ to, replace: true });
+        if (email.trim().toLowerCase() === "admin@velocitydriver.com") {
+          await navigate({ to: "/admin", replace: true });
+        } else {
+          const to = signIn.user
+            ? await landingFor(signIn.user.id, signIn.user.email)
+            : ("/home" as const);
+          await navigate({ to, replace: true });
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -159,10 +187,47 @@ function AuthPage() {
           {mode === "login" ? "Belum punya akun? Daftar di sini" : "Sudah punya akun? Masuk"}
         </button>
 
-        <div className="mt-6 rounded-md border border-border bg-muted p-3 text-[11px] leading-relaxed text-muted-foreground">
-          <p className="mb-1 font-bold text-primary">Akun Demo</p>
-          <p>Admin — admin@menara.com / Menara123!</p>
-          <p>User — user@menara.com / Menara123!</p>
+        <div className="mt-6 rounded-md border border-primary/30 bg-muted/60 p-3.5 text-xs">
+          <p className="font-bold text-primary flex items-center justify-between mb-2">
+            <span>Akses Cepat Akun Demo</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary uppercase font-mono">
+              1-Klik
+            </span>
+          </p>
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleQuickLogin("admin@velocitydriver.com", "Velocity123!")}
+              className="w-full flex items-center justify-between p-2.5 rounded bg-primary/10 hover:bg-primary/20 border border-primary/40 text-left transition-colors text-xs disabled:opacity-50"
+            >
+              <div>
+                <p className="font-bold text-foreground flex items-center gap-1.5">
+                  <Crown size={14} className="text-primary" />
+                  Masuk sebagai Admin Demo
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  admin@velocitydriver.com • Panel & Sidebar Lengkap
+                </p>
+              </div>
+              <span className="text-primary font-bold text-[11px] shrink-0">&rarr;</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void handleQuickLogin("user@velocitydriver.com", "Velocity123!")}
+              className="w-full flex items-center justify-between p-2.5 rounded bg-secondary/80 hover:bg-secondary border border-border text-left transition-colors text-xs disabled:opacity-50"
+            >
+              <div>
+                <p className="font-medium text-foreground">Masuk sebagai Investor Demo</p>
+                <p className="text-[10px] text-muted-foreground">
+                  user@velocitydriver.com • Tampilan Dasbor User
+                </p>
+              </div>
+              <span className="text-muted-foreground font-bold text-[11px] shrink-0">&rarr;</span>
+            </button>
+          </div>
         </div>
       </div>
     </main>
