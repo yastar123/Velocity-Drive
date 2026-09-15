@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import "dotenv/config";
 import { db } from "./index";
 import { eq, sql } from "drizzle-orm";
 import * as schema from "../../drizzle/schema";

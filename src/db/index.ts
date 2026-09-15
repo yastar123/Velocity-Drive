@@ -1,8 +1,34 @@
+import "dotenv/config";
+import fs from "fs";
+import path from "path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "../../drizzle/schema";
 
-const connectionString = process.env.DATABASE_URL || "";
+function getDatabaseUrl(): string {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  try {
+    const envPath = path.resolve(process.cwd(), ".env");
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, "utf-8");
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("DATABASE_URL=")) {
+          const val = trimmed
+            .substring("DATABASE_URL=".length)
+            .trim()
+            .replace(/^["']|["']$/g, "");
+          if (val) return val;
+        }
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return "";
+}
+
+const connectionString = getDatabaseUrl();
 
 // Add connection timeout so it doesn't hang if invalid host
 export const pool = new pg.Pool({
