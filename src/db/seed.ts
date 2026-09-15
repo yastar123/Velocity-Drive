@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from "./index";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import * as schema from "../../drizzle/schema";
 import crypto from "crypto";
 
@@ -11,6 +11,13 @@ function hashPassword(password: string): string {
 async function seedDatabase() {
   console.log("🌱 Starting database seed...");
   try {
+    try {
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+    } catch {
+      // Ignored if user has no superuser or already exists
+    }
+
     const adminEmail = "admin@velocitydriver.com";
     const userEmail = "user@velocitydriver.com";
     const demoPassword = hashPassword("Velocity123!");

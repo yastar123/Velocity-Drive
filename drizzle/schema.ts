@@ -9,12 +9,15 @@ import {
   integer,
   time,
 } from "drizzle-orm/pg-core";
+import crypto from "crypto";
 
 export const appRole = pgEnum("app_role", ["admin", "user"]);
 export const requestStatus = pgEnum("request_status", ["pending", "approved", "rejected"]);
 
 export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   email: text("email").unique(),
   fullName: text("full_name"),
   password: text("password"),
@@ -24,7 +27,9 @@ export const profiles = pgTable("profiles", {
 });
 
 export const userRoles = pgTable("user_roles", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   userId: uuid("user_id").notNull(),
   role: appRole("role").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -47,7 +52,9 @@ export const paymentSettings = pgTable("payment_settings", {
 });
 
 export const depositRequests = pgTable("deposit_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   userId: uuid("user_id").notNull(),
   amount: bigint("amount", { mode: "number" }).notNull(),
   method: text("method").notNull(),
@@ -61,7 +68,9 @@ export const depositRequests = pgTable("deposit_requests", {
 });
 
 export const withdrawRequests = pgTable("withdraw_requests", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   userId: uuid("user_id").notNull(),
   amount: bigint("amount", { mode: "number" }).notNull(),
   method: text("method").notNull(),
@@ -76,7 +85,9 @@ export const withdrawRequests = pgTable("withdraw_requests", {
 });
 
 export const products = pgTable("products", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   price: bigint("price", { mode: "number" }).notNull().default(0),
   daily: bigint("daily", { mode: "number" }).notNull().default(0),
@@ -91,7 +102,9 @@ export const products = pgTable("products", {
 });
 
 export const faqs = pgTable("faqs", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   question: text("question").notNull(),
   answer: text("answer").notNull(),
   active: boolean("active").notNull().default(true),
@@ -101,7 +114,9 @@ export const faqs = pgTable("faqs", {
 });
 
 export const announcements = pgTable("announcements", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   message: text("message").notNull(),
   active: boolean("active").notNull().default(true),
   sort: integer("sort").notNull().default(0),
@@ -117,7 +132,9 @@ export const siteContent = pgTable("site_content", {
 });
 
 export const bonusCodes = pgTable("bonus_codes", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   code: text("code").notNull().unique(),
   amount: bigint("amount", { mode: "number" }).notNull().default(0),
   maxUses: integer("max_uses").notNull().default(1),
@@ -128,7 +145,9 @@ export const bonusCodes = pgTable("bonus_codes", {
 });
 
 export const orders = pgTable("orders", {
-  id: uuid("id").primaryKey().defaultRandom(),
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
   userId: uuid("user_id").notNull(),
   productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
   productName: text("product_name").notNull(),
