@@ -35,6 +35,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      banners: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          image_url: string;
+          link_url: string | null;
+          sort: number;
+          title: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          image_url: string;
+          link_url?: string | null;
+          sort?: number;
+          title?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          image_url?: string;
+          link_url?: string | null;
+          sort?: number;
+          title?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       bonus_codes: {
         Row: {
           active: boolean;
@@ -246,6 +279,7 @@ export type Database = {
           days: number;
           description: string | null;
           id: string;
+          image_url: string | null;
           name: string;
           price: number;
           sort: number;
@@ -260,6 +294,7 @@ export type Database = {
           days?: number;
           description?: string | null;
           id?: string;
+          image_url?: string | null;
           name: string;
           price?: number;
           sort?: number;
@@ -274,6 +309,7 @@ export type Database = {
           days?: number;
           description?: string | null;
           id?: string;
+          image_url?: string | null;
           name?: string;
           price?: number;
           sort?: number;

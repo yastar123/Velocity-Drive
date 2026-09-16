@@ -57,10 +57,17 @@ function Page() {
     void load();
   }, [load]);
 
-  const enabled = settings?.withdraw_enabled ?? false;
-  const open = settings ? isWindowOpen(settings.withdraw_start, settings.withdraw_end) : false;
+  const enabled = settings?.withdraw_enabled ?? true;
+  const is24Hours =
+    !settings?.withdraw_start ||
+    (settings.withdraw_start === "00:00" && settings.withdraw_end === "23:59");
+  const open = settings
+    ? is24Hours
+      ? true
+      : isWindowOpen(settings.withdraw_start, settings.withdraw_end)
+    : true;
   const canSubmit = Boolean(settings) && enabled && open;
-  const minimum = settings?.min_withdraw ?? 0;
+  const minimum = settings?.min_withdraw ?? 50000;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -105,9 +112,14 @@ function Page() {
         melampirkan bukti transfer.
       </PageIntro>
 
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <Stat label="Saldo Tersedia" value={rupiah(balance)} accent />
-        <Stat label="Minimal" value={rupiah(minimum)} />
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <Stat label="Saldo" value={rupiah(balance)} accent />
+        <Stat label="Minimal" value={rupiah(minimum || 50000)} />
+        <Stat label="Biaya Fee" value="6% + Rp5.000" />
+      </div>
+
+      <div className="mb-4 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-center text-xs font-semibold text-emerald-400">
+        🕒 Penarikan 24 Jam Bebas — Anda dapat mengajukan penarikan kapan saja tanpa batasan jam.
       </div>
 
       {settings && (
@@ -158,11 +170,25 @@ function Page() {
               inputMode="numeric"
               className="field"
               min={minimum || 1}
-              placeholder={`Minimal ${rupiah(minimum)}`}
+              placeholder={`Minimal ${rupiah(minimum || 50000)}`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
           </label>
+          {Number(amount) > 0 && (
+            <div className="rounded-md bg-muted/60 p-2.5 text-xs space-y-1">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Fee Penarikan (6% + Rp5.000):</span>
+                <span>{rupiah(Math.round(Number(amount) * 0.06 + 5000))}</span>
+              </div>
+              <div className="flex justify-between font-bold text-foreground">
+                <span>Estimasi Bersih Diterima:</span>
+                <span className="text-primary">
+                  {rupiah(Math.max(0, Math.round(Number(amount) - (Number(amount) * 0.06 + 5000))))}
+                </span>
+              </div>
+            </div>
+          )}
           <button className="btn-primary w-full disabled:opacity-50" disabled={busy || !canSubmit}>
             <ArrowUpFromLine size={15} /> {busy ? "Mengirim…" : "Ajukan Penarikan"}
           </button>

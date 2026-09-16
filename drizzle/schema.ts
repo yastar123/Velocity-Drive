@@ -94,6 +94,7 @@ export const products = pgTable("products", {
   total: bigint("total", { mode: "number" }).notNull().default(0),
   days: integer("days").notNull().default(30),
   type: text("type").notNull().default("REGULER"),
+  imageUrl: text("image_url"),
   description: text("description"),
   active: boolean("active").notNull().default(true),
   sort: integer("sort").notNull().default(0),
@@ -156,6 +157,19 @@ export const orders = pgTable("orders", {
   days: integer("days").notNull().default(30),
   total: bigint("total", { mode: "number" }).notNull().default(0),
   status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const banners = pgTable("banners", {
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  title: text("title"),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url"),
+  active: boolean("active").notNull().default(true),
+  sort: integer("sort").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

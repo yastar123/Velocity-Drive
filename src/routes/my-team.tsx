@@ -15,7 +15,7 @@ export const Route = createFileRoute("/my-team")({
 });
 const levels: [string, string, string][] = [
   ["1", "Anggota Langsung", "30%"],
-  ["2", "Jaringan Turunan", "2%"],
+  ["2", "Jaringan Turunan", "3%"],
   ["3", "Jaringan Lanjutan", "1%"],
 ];
 function Page() {

@@ -52,15 +52,8 @@ export async function isPostgresAvailable(): Promise<boolean> {
 
   // If DATABASE_URL is not set or empty, immediately report unavailable
   if (!connectionString || connectionString.includes("localhost:5432")) {
-    try {
-      const client = await pool.connect();
-      postgresAvailable = true;
-      client.release();
-      return true;
-    } catch {
-      postgresAvailable = false;
-      return false;
-    }
+    postgresAvailable = false;
+    return false;
   }
 
   try {

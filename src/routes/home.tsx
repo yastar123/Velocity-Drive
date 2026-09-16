@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { CheckCircle2, ChevronRight, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import {
   AppShell,
   Card,
@@ -11,19 +12,21 @@ import {
   Stat,
 } from "@/components/menara-ui";
 import { meta, rupiah } from "@/lib/menara-data";
-import { fetchAnnouncements, fetchSiteContent, type Announcement } from "@/lib/content";
+import { WelcomeModal } from "@/components/welcome-modal";
+import { BannerCarousel } from "@/components/banner-carousel";
+import {
+  fetchAnnouncements,
+  fetchSiteContent,
+  fetchProducts,
+  getProductImageUrl,
+  type Announcement,
+  type Product,
+} from "@/lib/content";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
-const floors = [
-  ["L01", "Lantai Dasar", "Rp100.000", "1,2%/hari", 82],
-  ["L02", "Lantai Perak", "Rp500.000", "1,5%/hari", 64],
-  ["L03", "Lantai Emas", "Rp2.500.000", "1,8%/hari", 41],
-  ["L04", "Lantai Mahkota", "Rp10.000.000", "2,2%/hari", 12],
-] as const;
-
 export const Route = createFileRoute("/home")({
-  head: () => meta("Dasbor Investor", "Ringkasan saldo, lantai investasi, dan akses utama akun."),
+  head: () => meta("Dasbor Investor", "Ringkasan saldo, armada investasi, dan akses utama akun."),
   component: HomePage,
 });
 
@@ -34,15 +37,26 @@ function HomePage() {
   const [balance, setBalance] = useState(0);
   const [deposited, setDeposited] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [refCode, setRefCode] = useState("VELOCITY99");
+  const [userName, setUserName] = useState("Investor");
 
   useEffect(() => {
     void fetchAnnouncements().then(setNews);
     void fetchSiteContent().then(setText);
+    void fetchProducts().then((p) => setProducts(p.slice(0, 4)));
     void (async () => {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
+      const emailName = auth.user.email ? auth.user.email.split("@")[0] : "Investor";
+      setUserName(emailName);
+
       const [{ data: profile }, { data: deps }, { count }] = await Promise.all([
-        supabase.from("profiles").select("balance").eq("id", auth.user.id).maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("full_name, balance, referral_code")
+          .eq("id", auth.user.id)
+          .maybeSingle(),
         supabase
           .from("deposit_requests")
           .select("amount")
@@ -54,7 +68,11 @@ function HomePage() {
           .eq("user_id", auth.user.id)
           .eq("status", "active"),
       ]);
+      if (profile?.full_name?.trim()) {
+        setUserName(profile.full_name.trim());
+      }
       setBalance(Number(profile?.balance ?? 0));
+      if (profile?.referral_code) setRefCode(profile.referral_code);
       setDeposited((deps ?? []).reduce((s, d) => s + Number(d.amount ?? 0), 0));
       setActiveCount(count ?? 0);
     })();
@@ -67,24 +85,27 @@ function HomePage() {
           Buka Panel Admin
         </Link>
       )}
-      <PageIntro
-        eyebrow="DASBOR INVESTOR"
-        title={text["home_hero_title"] ?? "Selamat datang kembali"}
-      >
-        {text["home_hero_text"] ?? "Pantau saldo dan progres investasi Anda."}
-      </PageIntro>
+
+      <div>
+        <PageIntro
+          eyebrow="DASBOR INVESTOR"
+          title={text["home_hero_title"] ?? "Selamat datang di Velocity Driver"}
+        >
+          {text["home_hero_text"] ?? "Pantau saldo dan armada investasi supercar Anda."}
+        </PageIntro>
+      </div>
+
       <Card className="overflow-hidden">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[10px] uppercase text-muted-foreground">Saldo Utama (IDR)</p>
             <p className="mt-2 font-display text-4xl font-bold">{rupiah(balance)}</p>
-            <p className="mt-1 text-xs text-primary">Saldo tersedia untuk pembelian produk</p>
+            <p className="mt-1 text-xs text-primary">Saldo tersedia untuk pembelian armada</p>
           </div>
-          <span className="status-dot">AKTIF</span>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <Stat label="Total Deposit" value={rupiah(deposited)} />
-          <Stat label="Produk Aktif" value={`${activeCount} Produk`} accent />
+          <Stat label="Produk Aktif" value={`${activeCount} Armada`} accent />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Link className="btn-primary" to="/deposit">
@@ -95,60 +116,132 @@ function HomePage() {
           </Link>
         </div>
       </Card>
+
       {news.length > 0 && (
         <div className="my-4 overflow-hidden border-y border-border py-2 text-[10px] text-primary">
           <p className="whitespace-nowrap">● {news.map((n) => n.message).join("  •  ")}</p>
         </div>
       )}
-      <QuickActions />
-      <SectionTitle aside={<span className="text-xs text-primary">4 lantai</span>}>
-        Lantai Investasi
+
+      <div className="my-4">
+        <QuickActions />
+      </div>
+
+      {/* Auto-Rotating Full-Width Banner Carousel */}
+      <div className="my-4">
+        <BannerCarousel />
+      </div>
+
+      {/* Featured Fleet Section */}
+      <SectionTitle
+        aside={
+          <Link to="/vip" className="flex items-center gap-1 text-xs font-semibold text-primary">
+            Lihat Semua <ChevronRight className="size-3.5" />
+          </Link>
+        }
+      >
+        Armada Investasi Pilihan
       </SectionTitle>
-      <div className="space-y-2">
-        {floors.map((f) => (
-          <Card key={f[0]}>
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-              <span className="font-display text-sm font-bold text-primary">{f[0]}</span>
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold">{f[1]}</h3>
-                <p className="text-[10px] text-muted-foreground">
-                  Minimal {f[2]} • {f[3]}
-                </p>
+
+      <div className="space-y-3">
+        {products.map((p) => (
+          <Card
+            key={p.id}
+            className="group overflow-hidden p-3 transition-all hover:border-primary/40"
+          >
+            <div className="flex gap-3">
+              <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-lg bg-muted">
+                <img
+                  src={getProductImageUrl(p)}
+                  alt={p.name}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80";
+                  }}
+                />
               </div>
-              <span className="text-xs font-bold">{f[4]}%</span>
-            </div>
-            <div className="progress mt-3">
-              <i style={{ width: `${f[4]}%` }} />
+              <div className="flex min-w-0 flex-1 flex-col justify-between">
+                <div>
+                  <h3 className="truncate font-display text-sm font-bold text-foreground">
+                    {p.name}
+                  </h3>
+                  <p className="text-[11px] font-semibold text-primary">{rupiah(p.price)}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Profit {rupiah(p.daily)}/hari • {p.days} hari
+                  </p>
+                </div>
+                <Link
+                  to="/package/details/$id"
+                  params={{ id: p.id }}
+                  className="mt-2 inline-flex w-fit items-center rounded-md bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20"
+                >
+                  Beli Armada
+                </Link>
+              </div>
             </div>
           </Card>
         ))}
       </div>
-      <SectionTitle>Undang & Tumbuh</SectionTitle>
+
+      <SectionTitle>Kode Referral Anda</SectionTitle>
       <Card>
-        <p className="font-display text-lg font-bold">Ajak satu orang, tambah satu lantai</p>
-        <div className="mt-3 flex items-center justify-between rounded bg-muted p-2">
-          <code className="text-primary">963tts5608</code>
-          <CopyButton text="963tts5608" />
+        <p className="font-display text-base font-bold">Ajak rekan & raih komisi hingga 30%</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Bagikan kode referral Anda ke relasi dan dapatkan komisi instan saat mereka membeli
+          armada.
+        </p>
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-muted p-2.5">
+          <code className="font-mono text-sm font-bold text-primary">{refCode}</code>
+          <CopyButton text={refCode} />
         </div>
         <Link to="/my-team" className="btn-secondary mt-3 w-full">
           Lihat Tim Saya
         </Link>
       </Card>
-      <SectionTitle>Tentang Kami</SectionTitle>
-      <Card>
-        <h3 className="font-display text-lg font-bold text-primary">
-          {text["about_title"] ?? "Bangun kekayaan lantai demi lantai"}
-        </h3>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {text["about_text"] ??
-            "Model investasi berbasis lantai dengan informasi performa yang transparan."}
-        </p>
-        <Link to="/about" className="btn-secondary mt-4 w-full">
-          Selengkapnya
-        </Link>
-      </Card>
-      <Notice>Investasi memiliki risiko. Pelajari rincian produk sebelum membeli.</Notice>
-      <p className="mt-6 text-center text-[10px] text-muted-foreground">© 2026 Velocity Driver</p>
+
+      {/* Bottom Trust Claims Section */}
+      <div className="mt-8 mb-5 grid grid-cols-2 gap-2.5 text-center sm:grid-cols-4">
+        <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+          <ShieldCheck className="mx-auto size-5 text-emerald-500" />
+          <strong className="mt-1.5 block text-xs font-bold text-foreground leading-tight">
+            Investasi aman
+          </strong>
+        </div>
+
+        <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+          <TrendingUp className="mx-auto size-5 text-primary" />
+          <strong className="mt-1.5 block text-xs font-bold text-foreground leading-tight">
+            Profit stabil
+          </strong>
+        </div>
+
+        <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+          <Zap className="mx-auto size-5 text-amber-500" />
+          <strong className="mt-1.5 block text-xs font-bold text-foreground leading-tight">
+            Profit harian langsung masuk
+          </strong>
+        </div>
+
+        <div className="rounded-lg border border-border/80 bg-card p-3 shadow-sm">
+          <CheckCircle2 className="mx-auto size-5 text-blue-500" />
+          <strong className="mt-1.5 block text-xs font-bold text-foreground leading-tight">
+            Transparan terpercaya
+          </strong>
+        </div>
+      </div>
+
+      <Notice className="my-5">
+        Profit dihitung berdasarkan paket harian dan masuk otomatis setiap jam ke saldo Anda.
+      </Notice>
+      <p className="mt-6 mb-4 text-center text-[10px] text-muted-foreground">
+        © 2026 Velocity Driver
+      </p>
+
+      {/* Pop Up Selamat Datang Setengah Layar Bawah */}
+      <WelcomeModal userName={userName} telegramUrl={text.telegram_url || "https://t.me/"} />
     </AppShell>
   );
 }

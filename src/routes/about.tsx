@@ -4,8 +4,8 @@ import { meta } from "@/lib/menara-data";
 export const Route = createFileRoute("/about")({
   head: () =>
     meta(
-      "Prime Stone Investment",
-      "Profil, pendekatan investasi, dan pendiri Prime Stone Investment.",
+      "Velocity Driver",
+      "Profil perusahaan, visi misi, dan pendekatan investasi armada supercar Velocity Driver.",
     ),
   component: Page,
 });
@@ -16,26 +16,27 @@ const founders = [
 ];
 function Page() {
   return (
-    <AppShell title="{PSI} PRIME STONE INVESTMENT" subtitle="ACTIVE OWNERSHIP • LONG-TERM VALUE">
+    <AppShell title="VELOCITY DRIVER" subtitle="SUPERCAR INVESTMENT PLATFORM">
       <PageIntro
-        eyebrow="ABOUT • COMPANY PROFILE"
-        title="Menciptakan nilai jangka panjang melalui kepemilikan dan kolaborasi konstruktif"
+        eyebrow="TENTANG KAMI • PROFIL PERUSAHAAN"
+        title="Menciptakan dividen berkelanjutan melalui manajemen armada supercar profesional"
       >
-        Berfokus pada perusahaan publik dengan potensi signifikan menciptakan nilai berkelanjutan.
+        Berfokus pada portofolio supercar performa tinggi dengan imbal hasil harian yang transparan
+        dan stabil.
       </PageIntro>
       <div className="grid grid-cols-3 gap-2">
-        <Stat label="Pendiri" value="3" />
-        <Stat label="Bersama" value="25+ Tahun" />
-        <Stat label="Pengalaman" value="Eropa" />
+        <Stat label="Armada" value="9+ Unit" />
+        <Stat label="Komisi" value="Hingga 30%" />
+        <Stat label="Penarikan" value="24 Jam" />
       </div>
-      <SectionTitle>Tentang PrimeStone</SectionTitle>
+      <SectionTitle>Tentang Velocity Driver</SectionTitle>
       <Card>
-        <h2 className="font-display text-xl font-bold text-primary">Prime Stone Investments</h2>
-        <p className="mt-1 text-xs">Active ownership • Sustainable long-term value</p>
+        <h2 className="font-display text-xl font-bold text-primary">Velocity Driver Nusantara</h2>
+        <p className="mt-1 text-xs">Platform Investasi Armada Supercar Eksklusif</p>
         <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-          Mengambil kepemilikan saham minoritas substansial di perusahaan bursa dan bekerja
-          konstruktif bersama manajemen serta pemangku kepentingan. Didirikan tiga mantan mitra The
-          Carlyle Group yang sebelumnya menjadi konsultan di The Boston Consulting Group.
+          Platform kepemilikan dan sewa armada performa tinggi dengan sistem bagi hasil dividen per
+          jam. Didukung teknologi otomatisasi terdepan, transparansi penarikan dana 24 jam, dan
+          skema referral 3 tingkat.
         </p>
       </Card>
       <SectionTitle>Pendekatan Investasi</SectionTitle>
@@ -67,16 +68,17 @@ function Page() {
       </p>
       <SectionTitle>Warisan Pengalaman</SectionTitle>
       <Card>
-        <strong className="font-display text-3xl text-primary">25+ Years</strong>
+        <strong className="font-display text-3xl text-primary">Supercar Fleet</strong>
         <p className="mt-2 text-xs text-muted-foreground">
-          Pengalaman investasi dan operasional bersama di Eropa.
+          Pengelolaan armada kendaraan performa tinggi dengan standar keamanan dan utilitas sewa
+          optimal.
         </p>
       </Card>
       <Link to="/home" className="btn-primary mt-4 w-full">
         Dashboard
       </Link>
       <p className="mt-5 text-center text-[9px] text-muted-foreground">
-        © 2026 PSI Prime Stone Investment
+        © 2026 Velocity Driver Nusantara. All rights reserved.
       </p>
     </AppShell>
   );

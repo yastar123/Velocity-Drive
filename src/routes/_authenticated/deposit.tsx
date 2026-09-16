@@ -123,7 +123,7 @@ function Page() {
 
       <div className="mb-4 grid grid-cols-2 gap-2">
         <Stat label="Saldo Utama" value={rupiah(balance)} accent />
-        <Stat label="Minimal" value={rupiah(minimum)} />
+        <Stat label="Minimal" value={rupiah(minimum || 150000)} />
       </div>
 
       {settings && (
@@ -179,8 +179,8 @@ function Page() {
               required
               inputMode="numeric"
               type="number"
-              min={minimum || 1}
-              placeholder={`Minimal ${rupiah(minimum)}`}
+              min={minimum || 150000}
+              placeholder={`Minimal ${rupiah(minimum || 150000)}`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />

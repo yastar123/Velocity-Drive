@@ -15,6 +15,7 @@ import {
   inMemoryAuthLogin,
   inMemoryAuthSignup,
   inMemoryExecute,
+  distributeHourlyProfits,
 } from "./server-inmemory";
 
 // SHA-256 password hashing helper
@@ -157,11 +158,11 @@ async function seedDatabase() {
           "Transfer ke rekening BCA 1234567890 a/n Velocity Driver, lalu unggah bukti transfer di bawah.",
         depositEnabled: true,
         withdrawEnabled: true,
-        depositStart: "08:00",
-        depositEnd: "21:00",
-        withdrawStart: "08:00",
-        withdrawEnd: "17:00",
-        minDeposit: 75000,
+        depositStart: "00:00",
+        depositEnd: "23:59",
+        withdrawStart: "00:00",
+        withdrawEnd: "23:59",
+        minDeposit: 150000,
         minWithdraw: 50000,
       });
       console.log("[Seed] Default payment settings seeded successfully.");
@@ -172,134 +173,94 @@ async function seedDatabase() {
     if (!existingProduct) {
       const defaultProducts = [
         {
-          name: "DRIVER 01",
-          price: 75000,
-          daily: 10250,
-          total: 615000,
-          days: 60,
+          name: "Toyota Supra",
+          price: 120000,
+          daily: 25000,
+          total: 750000,
+          days: 30,
           type: "REGULER",
           active: true,
           sort: 1,
         },
         {
-          name: "DRIVER 02",
-          price: 100000,
-          daily: 13667,
-          total: 820000,
+          name: "Honda Civic Type R",
+          price: 350000,
+          daily: 65000,
+          total: 3900000,
           days: 60,
           type: "REGULER",
           active: true,
           sort: 2,
         },
         {
-          name: "DRIVER 03",
-          price: 250000,
-          daily: 34167,
-          total: 2050000,
-          days: 60,
+          name: "Mitsubishi Lancer Evo X",
+          price: 750000,
+          daily: 165000,
+          total: 14850000,
+          days: 90,
           type: "REGULER",
           active: true,
           sort: 3,
         },
         {
-          name: "DRIVER 04",
-          price: 500000,
-          daily: 68333,
-          total: 4100000,
-          days: 60,
+          name: "Mazda MX-5",
+          price: 1300000,
+          daily: 235000,
+          total: 21150000,
+          days: 90,
           type: "REGULER",
           active: true,
           sort: 4,
         },
         {
-          name: "DRIVER 05",
-          price: 1000000,
-          daily: 135000,
-          total: 8100000,
-          days: 60,
+          name: "BMW M5",
+          price: 2700000,
+          daily: 495000,
+          total: 59400000,
+          days: 120,
           type: "REGULER",
           active: true,
           sort: 5,
         },
         {
-          name: "DRIVER 06",
-          price: 2000000,
-          daily: 273333,
-          total: 16400000,
-          days: 60,
+          name: "Mercedes-Benz AMG GT",
+          price: 5200000,
+          daily: 1125000,
+          total: 202500000,
+          days: 180,
           type: "REGULER",
           active: true,
           sort: 6,
         },
         {
-          name: "DRIVER 07",
-          price: 3000000,
-          daily: 410000,
-          total: 24600000,
-          days: 60,
+          name: "Audi R8",
+          price: 5200000,
+          daily: 1125000,
+          total: 202500000,
+          days: 180,
           type: "REGULER",
           active: true,
           sort: 7,
         },
         {
-          name: "DRIVER 08",
-          price: 3500000,
-          daily: 478333,
-          total: 28700000,
-          days: 60,
+          name: "Porsche 911",
+          price: 15000000,
+          daily: 3500000,
+          total: 630000000,
+          days: 180,
           type: "REGULER",
           active: true,
           sort: 8,
         },
         {
-          name: "DRIVER 09",
-          price: 4000000,
-          daily: 546667,
-          total: 32800000,
-          days: 60,
+          name: "Lamborghini",
+          price: 25000000,
+          daily: 5000000,
+          total: 900000000,
+          days: 180,
           type: "REGULER",
           active: true,
           sort: 9,
-        },
-        {
-          name: "DRIVER 10",
-          price: 5000000,
-          daily: 683333,
-          total: 41000000,
-          days: 60,
-          type: "REGULER",
-          active: true,
-          sort: 10,
-        },
-        {
-          name: "PROMO 1",
-          price: 100000,
-          daily: 50000,
-          total: 500000,
-          days: 10,
-          type: "VIP",
-          active: true,
-          sort: 11,
-        },
-        {
-          name: "PROMO 2",
-          price: 500000,
-          daily: 250000,
-          total: 2500000,
-          days: 10,
-          type: "VIP",
-          active: true,
-          sort: 12,
-        },
-        {
-          name: "PROMO 3",
-          price: 1000000,
-          daily: 500000,
-          total: 5000000,
-          days: 10,
-          type: "VIP",
-          active: true,
-          sort: 13,
         },
       ];
       for (const p of defaultProducts) {
@@ -400,10 +361,38 @@ app.get("/api/stats", async (req, res) => {
   }
 });
 
+// Background job: Automatically distribute hourly profits every 60 seconds
+setInterval(() => {
+  try {
+    distributeHourlyProfits();
+  } catch (err) {
+    console.error("Auto hourly profit distribution error:", err);
+  }
+}, 60000);
+
+// Profit distribution status and trigger endpoint
+app.get("/api/profit/status", (req, res) => {
+  try {
+    const result = distributeHourlyProfits();
+    return res.json({ success: true, result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || "Gagal memproses profit per jam." });
+  }
+});
+
+app.post("/api/profit/distribute", (req, res) => {
+  try {
+    const result = distributeHourlyProfits();
+    return res.json({ success: true, result });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || "Gagal memproses profit per jam." });
+  }
+});
+
 // User signup endpoint
 app.post("/api/auth/signup", async (req, res) => {
   try {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, referralCode } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email dan kata sandi diperlukan." });
     }
@@ -411,7 +400,7 @@ app.post("/api/auth/signup", async (req, res) => {
     const pgReady = await isPostgresAvailable();
     if (!pgReady) {
       try {
-        const newUser = inMemoryAuthSignup(email, password, fullName);
+        const newUser = inMemoryAuthSignup(email, password, fullName, referralCode);
         return res.json({ user: mapKeysToSnakeCase(newUser) });
       } catch (memErr: any) {
         return res.status(400).json({ error: memErr.message || "Pendaftaran gagal." });
@@ -433,7 +422,7 @@ app.post("/api/auth/signup", async (req, res) => {
         email,
         fullName: fullName || email.split("@")[0],
         password: hashed,
-        balance: 0,
+        balance: 20000,
       })
       .returning();
 
@@ -724,6 +713,7 @@ app.post("/api/db", async (req, res) => {
       site_content: schema.siteContent,
       bonus_codes: schema.bonusCodes,
       orders: schema.orders,
+      banners: schema.banners,
     };
 
     const table = tableMap[tableName];

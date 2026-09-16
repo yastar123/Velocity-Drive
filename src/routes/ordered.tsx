@@ -55,8 +55,12 @@ function Page() {
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <Stat label="Harian" value={rupiah(o.daily)} />
+              <Stat label="Profit / Jam" value={rupiah(Math.round(o.daily / 24))} accent />
               <Stat label="Durasi" value={`${o.days} hari`} />
-              <Stat label="Hasil" value={rupiah(o.total)} accent />
+            </div>
+            <div className="mt-2.5 rounded border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] text-emerald-400">
+              ⚡ <strong>Profit Masuk Per Jam:</strong> {rupiah(Math.round(o.daily / 24))} dihitung
+              & masuk otomatis setiap jam ke saldo Anda.
             </div>
           </Card>
         ))}

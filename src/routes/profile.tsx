@@ -12,6 +12,7 @@ import {
 } from "@/components/menara-ui";
 import { DeviceImageUpload } from "@/components/device-image-upload";
 import { meta, rupiah } from "@/lib/menara-data";
+import { fetchSiteContent } from "@/lib/content";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -42,9 +43,13 @@ function Page() {
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarSavedMsg, setAvatarSavedMsg] = useState(false);
+  const [telegramUrl, setTelegramUrl] = useState("https://t.me/");
 
   useEffect(() => {
     setIsMounted(true);
+    void fetchSiteContent().then((data) => {
+      if (data.telegram_url) setTelegramUrl(data.telegram_url);
+    });
   }, []);
 
   useEffect(() => {
@@ -197,7 +202,7 @@ function Page() {
           </Link>
         ))}
         <a
-          href="https://t.me/"
+          href={telegramUrl}
           className="btn-secondary min-h-12 text-center"
           target="_blank"
           rel="noreferrer"

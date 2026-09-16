@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell, Card, Notice, PageIntro, SectionTitle, Stat } from "@/components/menara-ui";
 import { meta, rupiah } from "@/lib/menara-data";
-import { fetchProduct, type Product } from "@/lib/content";
+import { fetchProduct, getProductImageUrl, type Product } from "@/lib/content";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/package/details/$id")({
@@ -69,6 +69,24 @@ function Page() {
       <PageIntro eyebrow={p.type} title={p.name}>
         Rincian sebelum pembelian • Kode produk #{p.id.slice(0, 8).toUpperCase()}
       </PageIntro>
+      <div className="relative mb-4 aspect-[16/9] w-full overflow-hidden rounded-xl border border-border bg-muted">
+        <img
+          src={getProductImageUrl(p)}
+          alt={p.name}
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src =
+              "https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80";
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute bottom-3 left-3 text-white">
+          <span className="text-[10px] font-bold uppercase tracking-wider opacity-85">
+            {p.type} ARMADA
+          </span>
+          <h2 className="font-display text-lg font-black">{p.name}</h2>
+        </div>
+      </div>
       <Card>
         <p className="font-display text-3xl font-bold text-primary">{rupiah(p.price)}</p>
         <div className="mt-4 grid grid-cols-2 gap-2">

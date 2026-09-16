@@ -16,6 +16,13 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [referralCode, setReferralCode] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("ref") || params.get("code") || "";
+    }
+    return "";
+  });
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -111,9 +118,11 @@ function AuthPage() {
     <main className="min-h-screen bg-stage">
       <div className="mx-auto flex min-h-screen w-full max-w-[430px] flex-col justify-center border-x border-border bg-background px-5 py-10 shadow-app">
         <div className="mb-6 flex items-center gap-3">
-          <div className="brand-mark">
-            <Crown size={18} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Velocity Driver"
+            className="h-10 w-auto shrink-0 object-contain"
+          />
           <div>
             <p className="font-display text-sm font-bold text-primary">VELOCITY DRIVER</p>
             <p className="text-[9px] font-semibold uppercase text-muted-foreground">Portal Akun</p>
@@ -126,20 +135,45 @@ function AuthPage() {
           Akun admin otomatis diarahkan ke panel admin setelah masuk.
         </p>
 
+        {mode === "signup" && (
+          <div className="mt-4 rounded-lg border border-primary/30 bg-primary/10 p-3 text-center">
+            <span className="block text-xs font-bold text-primary">
+              🎉 Bonus Pendaftaran Rp20.000
+            </span>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Daftar sekarang dan klaim bonus saldo Rp20.000 otomatis masuk ke akun Anda!
+            </p>
+          </div>
+        )}
+
         <form onSubmit={submit} className="mt-6 space-y-3">
           {mode === "signup" && (
-            <div>
-              <label className="label" htmlFor="name">
-                Nama Lengkap
-              </label>
-              <input
-                id="name"
-                className="field"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nama Anda"
-              />
-            </div>
+            <>
+              <div>
+                <label className="label" htmlFor="name">
+                  Nama Lengkap
+                </label>
+                <input
+                  id="name"
+                  className="field"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nama Anda"
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="refcode">
+                  Kode Referral (Opsional)
+                </label>
+                <input
+                  id="refcode"
+                  className="field uppercase"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  placeholder="Contoh: VELOCITY99"
+                />
+              </div>
+            </>
           )}
           <div>
             <label className="label" htmlFor="email">

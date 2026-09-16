@@ -66,15 +66,28 @@ export function AppShell({
         )}
         <header className="sticky top-0 z-40 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
               {back ? (
-                <Link to={back as "/"} className="icon-btn" aria-label="Kembali">
-                  <ArrowLeft size={18} />
-                </Link>
+                <>
+                  <Link to={back as "/"} className="icon-btn shrink-0" aria-label="Kembali">
+                    <ArrowLeft size={18} />
+                  </Link>
+                  <Link to="/home" className="flex shrink-0 items-center">
+                    <img
+                      src="/logo.png"
+                      alt="Velocity Driver"
+                      className="h-7 w-auto shrink-0 object-contain"
+                    />
+                  </Link>
+                </>
               ) : (
-                <div className="brand-mark">
-                  <Crown size={18} />
-                </div>
+                <Link to="/home" className="flex shrink-0 items-center">
+                  <img
+                    src="/logo.png"
+                    alt="Velocity Driver"
+                    className="h-8 w-auto shrink-0 object-contain"
+                  />
+                </Link>
               )}
               <div className="min-w-0">
                 <p className="truncate font-display text-sm font-bold text-primary">{title}</p>
@@ -82,19 +95,6 @@ export function AppShell({
                   {subtitle}
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isHealthy === true && (
-                <span className="inline-flex items-center rounded-sm bg-emerald-500/10 px-1.5 py-0.5 text-[8px] font-bold text-emerald-500 border border-emerald-500/20 uppercase tracking-wider">
-                  FULLSTACK OK
-                </span>
-              )}
-              {isHealthy === false && (
-                <span className="inline-flex items-center rounded-sm bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-bold text-amber-500 border border-amber-500/20 uppercase tracking-wider">
-                  LOCAL ONLY
-                </span>
-              )}
-              <span className="status-dot">AKTIF</span>
             </div>
           </div>
         </header>
@@ -170,9 +170,9 @@ export function Stat({
     </div>
   );
 }
-export function QuickActions() {
+export function QuickActions({ className = "" }: { className?: string }) {
   return (
-    <div className="grid grid-cols-4 gap-2">
+    <div className={`grid grid-cols-4 gap-2 ${className}`}>
       {[
         ["/deposit", "Isi Saldo", ArrowDownToLine],
         ["/withdraw", "Penarikan", ArrowUpFromLine],
@@ -209,11 +209,11 @@ export function Empty({ title, text }: { title: string; text: string }) {
     </Card>
   );
 }
-export function Notice({ children }: { children: ReactNode }) {
+export function Notice({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className="notice">
-      <ShieldCheck className="shrink-0" size={16} />
-      <span>{children}</span>
+    <div className={`notice ${className}`}>
+      <ShieldCheck className="shrink-0 text-primary" size={16} />
+      <span className="flex-1">{children}</span>
     </div>
   );
 }

@@ -15,12 +15,14 @@ import {
   Menu,
   Package,
   RefreshCw,
+  Send,
   Settings,
   ShieldAlert,
   ShieldCheck,
   ShoppingBag,
   Users,
   X,
+  Layers,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -60,7 +62,7 @@ const tabs = [
   "Akun",
   "Produk",
   "Pesanan",
-  "Konten",
+  "CMS",
   "Bonus",
   "Pengaturan",
 ] as const;
@@ -272,7 +274,7 @@ function AdminPage() {
     { id: "Akun" as const, label: "Kelola Pengguna", icon: Users, count: rows.length },
     { id: "Produk" as const, label: "Kelola Produk", icon: Package, count: totals.products },
     { id: "Pesanan" as const, label: "Riwayat Pesanan", icon: ShoppingBag, count: totals.orders },
-    { id: "Konten" as const, label: "Pengumuman & Konten", icon: Megaphone },
+    { id: "CMS" as const, label: "CMS & Konten Publik", icon: Layers },
     { id: "Bonus" as const, label: "Kode Bonus", icon: Gift },
     { id: "Pengaturan" as const, label: "Pengaturan Sistem", icon: Settings },
   ];
@@ -311,9 +313,11 @@ function AdminPage() {
         {/* Brand Header */}
         <div className="p-4 border-b border-border/60 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 border border-primary/40 flex items-center justify-center text-primary shadow-sm shadow-primary/20">
-              <Crown size={20} />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Velocity Driver"
+              className="h-8 w-auto shrink-0 object-contain"
+            />
             <div>
               <h1 className="font-display font-bold text-sm tracking-wider text-primary leading-tight">
                 VELOCITY DRIVER
@@ -438,6 +442,11 @@ function AdminPage() {
             >
               <Menu size={18} />
             </button>
+            <img
+              src="/logo.png"
+              alt="Velocity Driver"
+              className="h-7 w-auto shrink-0 object-contain lg:hidden"
+            />
             <div>
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium">
                 <span>Admin Console</span>
@@ -626,6 +635,14 @@ function AdminPage() {
                         {totals.products} total produk
                       </span>
                     </button>
+                    <button
+                      className="p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary text-left transition-colors flex flex-col gap-1.5"
+                      onClick={() => setTab("CMS")}
+                    >
+                      <Layers size={18} className="text-primary" />
+                      <span className="text-xs font-bold text-foreground">CMS Konten</span>
+                      <span className="text-[10px] text-muted-foreground">Banner, FAQ, Info</span>
+                    </button>
                   </div>
 
                   <div className="pt-2">
@@ -808,7 +825,7 @@ function AdminPage() {
 
           {tab === "Produk" && <ProductsPanel />}
           {tab === "Pesanan" && <OrdersPanel nameOf={nameOf} />}
-          {tab === "Konten" && <ContentPanel />}
+          {tab === "CMS" && <ContentPanel />}
           {tab === "Bonus" && <BonusPanel />}
 
           {tab === "Pengaturan" && (
@@ -1069,10 +1086,23 @@ function SettingsPanel({
   onError: (text: string) => void;
 }) {
   const [form, setForm] = useState<PaymentSettings | null>(settings);
+  const [telegramUrl, setTelegramUrl] = useState("https://t.me/");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => setForm(settings), [settings]);
+  useEffect(() => {
+    setForm(settings);
+    void (async () => {
+      const { data } = await supabase
+        .from("site_content")
+        .select("value")
+        .eq("key", "telegram_url")
+        .maybeSingle();
+      if (data?.value) {
+        setTelegramUrl(data.value);
+      }
+    })();
+  }, [settings]);
 
   if (!form) return <p className="mt-5 text-sm text-muted-foreground">Memuat pengaturan…</p>;
 
@@ -1102,8 +1132,32 @@ function SettingsPanel({
         })
         .eq("id", true);
       if (error) throw new Error(error.message);
+
+      // Simpan link Telegram ke site_content
+      const trimmedTelegram = telegramUrl.trim() || "https://t.me/";
+      const { data: existingContent } = await supabase
+        .from("site_content")
+        .select("key")
+        .eq("key", "telegram_url")
+        .maybeSingle();
+
+      if (existingContent) {
+        const { error: telError } = await supabase
+          .from("site_content")
+          .update({ value: trimmedTelegram })
+          .eq("key", "telegram_url");
+        if (telError) throw new Error(telError.message);
+      } else {
+        const { error: telError } = await supabase.from("site_content").insert({
+          key: "telegram_url",
+          value: trimmedTelegram,
+          label: "Tautan Telegram Pop-up & CS",
+        });
+        if (telError) throw new Error(telError.message);
+      }
+
       setFile(null);
-      await onSaved("Pengaturan pembayaran tersimpan.");
+      await onSaved("Pengaturan sistem & Telegram tersimpan.");
     } catch (e) {
       onError(e instanceof Error ? e.message : "Gagal menyimpan pengaturan.");
     } finally {
@@ -1114,8 +1168,42 @@ function SettingsPanel({
   return (
     <section className="mt-5 space-y-4">
       <h2 className="flex items-center gap-2 font-display text-base font-bold">
-        <Clock size={16} /> Pengaturan Pembayaran
+        <Clock size={16} /> Pengaturan Pembayaran & Sistem
       </h2>
+
+      {/* Pengaturan Tautan Telegram */}
+      <div className="panel space-y-3">
+        <h3 className="flex items-center gap-2 font-display text-sm font-bold text-primary">
+          <Send size={15} /> Tautan Telegram (Pop-up Beranda & CS)
+        </h3>
+        <label>
+          <span className="label">Link Telegram Resmi / Channel / CS</span>
+          <div className="relative mt-1">
+            <input
+              className="field pr-9 font-mono text-xs"
+              type="url"
+              placeholder="https://t.me/username_anda"
+              value={telegramUrl}
+              onChange={(e) => setTelegramUrl(e.target.value)}
+            />
+            {telegramUrl.startsWith("http") && (
+              <a
+                href={telegramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
+                title="Buka tautan di tab baru"
+              >
+                <ExternalLink size={14} />
+              </a>
+            )}
+          </div>
+          <span className="mt-1.5 block text-[11px] leading-relaxed text-muted-foreground">
+            Tautan ini otomatis digunakan saat pengguna menekan tombol <strong>Telegram</strong> di
+            pop-up beranda serta menu <strong>Layanan Pelanggan</strong> di profil.
+          </span>
+        </label>
+      </div>
 
       <div className="panel space-y-3">
         <div>
